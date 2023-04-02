@@ -54,6 +54,8 @@ class ExtremeResUnet(nn.Module):
         self.output_layer = nn.Sequential(nn.Conv2d(filters[0], 1, 1), nn.Sigmoid())
 
     def forward(self, x):
+        x = x.type(torch.cuda.FloatTensor)
+
         x1 = self.input_layer(x) + self.input_skip(x)
 
         x2 = self.squeeze_excite1(x1)
