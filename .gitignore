@@ -4,7 +4,7 @@
 */__pycache__
 # env
 .env
-egg-info
+**.egg-info
 # vscode
 .vscode
 # temporary files
