@@ -1,0 +1,4 @@
+matplotlib==3.7.1
+pandas==1.5.3
+setuptools==67.4.0
+tifffile==2023.3.21
