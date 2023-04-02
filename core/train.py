@@ -168,9 +168,9 @@ def validation(valid_loader, model, criterion, step):
         val_loss.update(loss.data.item(), outputs.size(0))
 
         if idx == 0:
-            imgs = sample.cpu().detach().numpy().squeeze()
-            target = target.cpu().detach().numpy().squeeze()
-            pred = outputs.cpu().detach().numpy().squeeze()
+            imgs = sample.cpu().detach().numpy().squeeze()[1, :]
+            target = target.cpu().detach().numpy().squeeze()[1, :]
+            pred = outputs.cpu().detach().numpy().squeeze()[1, :]
 
             print(imgs.shape, target.shape, pred.shape)
             image_samples = [
