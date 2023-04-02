@@ -1,0 +1,18 @@
+[project]
+name = "leaf_nothing_behind"
+authors = [
+    {name="Antoine Debouchage", email="antoine311200@gmail.com"},
+    {name="Valentin Goldite", email="valentin.goldite@gmail.com"},
+    {name="Clement Wang", email="clementwang2001@gmail.com"},
+    {name="Aurelien Wery", email="aurelienwery08@gmail.com"}
+]
+description = """Repository of the 2023 Transfer Learning competition in
+partnership with World From Spac. Team Antoine Aurélien Clement Valentin."""
+readme = "README.md"
+requires-python = ">=3.7"
+keywords = ["Leaf Area Idex", "Deep Learning"]
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+version = "1.0"
