@@ -20,6 +20,11 @@ import metrics
 PATH = "E:\Antoine\Compétitions\Leaf Nothing Behind\\assignment-2023\\assignment-2023"
 
 
+def collate_fn(batch):
+    batch = list(filter(lambda x: x is not None, batch))
+    return torch.utils.data.dataloader.default_collate(batch)
+
+
 def train():
     ########################## Wandb & General Constants ##########################
 
@@ -46,7 +51,7 @@ def train():
 
     ########################## Dataset ##########################
 
-    batch_size = 32
+    batch_size = 8
 
     dataset = LNBDataset(PATH, stackify=True)
     train_dataset, val_dataset = torch.utils.data.random_split(
@@ -57,14 +62,12 @@ def train():
         train_dataset,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=4,
+        num_workers=2,
+        collate_fn=collate_fn,
     )
 
     val_dataloader = DataLoader(
-        train_dataset,
-        batch_size=1,
-        shuffle=True,
-        num_workers=4,
+        val_dataset, batch_size=2, shuffle=True, num_workers=1, collate_fn=collate_fn
     )
 
     ########################## Training ##########################
@@ -72,9 +75,11 @@ def train():
     start_epoch = 0
     num_epochs = 100
 
-    step = 0
-    logging_step = 50
+    step = 1
+    logging_step = 1
     validation_step = 250
+
+    best_loss = 9999
 
     for epoch in range(start_epoch, num_epochs):
         print("#" * 40)
@@ -89,10 +94,10 @@ def train():
         train_loss = metrics.MetricTracker()
 
         # Batch loop
-        loader = tqdm(train_dataloader, desc="training")
+        loader = tqdm(train_dataloader, desc="Training")
         for idx, (samples, predictions) in enumerate(loader):
-            samples = samples.cuda()
-            predictions = predictions.cuda()
+            samples = samples.to("cuda")
+            predictions = predictions.to("cuda")
 
             optimizer.zero_grad()
 
@@ -106,7 +111,6 @@ def train():
             train_acc.update(metrics.dice_coeff(outputs, predictions), outputs.size(0))
             train_loss.update(loss.data.item(), outputs.size(0))
 
-            # tensorboard logging
             if step % logging_step == 0:
                 wandb.log(
                     {"train_accuracy": train_acc.avg, "train_loss": train_loss.avg}
@@ -120,7 +124,7 @@ def train():
 
             # Validation
             if step % validation_step == 0:
-                valid_metrics = validation(val_dataloader, model, criterion)
+                valid_metrics = validation(val_dataloader, model, criterion, step)
 
                 save_path = os.path.join(
                     checkpoint_dir, "%s_checkpoint_%04d.pt" % (name, step)
@@ -152,29 +156,42 @@ def validation(valid_loader, model, criterion, step):
 
     loader = tqdm(valid_loader, desc="validation")
 
-    for idx, (sample, prediction) in enumerate(loader):
+    for idx, (sample, target) in enumerate(loader):
         sample = sample.cuda()
-        prediction = prediction.cuda()
+        target = target.cuda()
 
         outputs = model(sample)
 
-        loss = criterion(outputs, prediction)
+        loss = criterion(outputs, target)
 
-        val_acc.update(metrics.dice_coeff(outputs, prediction), outputs.size(0))
+        val_acc.update(metrics.dice_coeff(outputs, target), outputs.size(0))
         val_loss.update(loss.data.item(), outputs.size(0))
 
         if idx == 0:
-            images_sample = wandb.Image(sample.cpu(), caption=f"Input at step {step}")
-            images_prediction = wandb.Image(prediction.cpu(), caption=f"Prediction at step {step}")
+            imgs = sample.cpu().detach().numpy().squeeze()
+            target = target.cpu().detach().numpy().squeeze()
+            pred = outputs.cpu().detach().numpy().squeeze()
+
+            print(imgs.shape, target.shape, pred.shape)
+            image_samples = [
+                wandb.Image(imgs[i, :, :], caption=f"Input at step {step}")
+                for i in range(imgs.shape[0])
+            ]
+            image_target = wandb.Image(target, caption=f"Target at step {step}")
+            image_pred = wandb.Image(pred, caption=f"Prediction at step {step}")
 
             wandb.log(
-                {"images_sample": images_sample, "images_prediction": images_prediction}
+                {
+                    "images_samples": image_samples,
+                    "images_result": [image_target, image_pred],
+                }
             )
     wandb.log({"accuracy": val_acc.avg, "loss": val_loss.avg})
 
     print("Validation Loss: {:.4f} Acc: {:.4f}".format(val_loss.avg, val_acc.avg))
     model.train()
     return {"valid_loss": val_loss.avg, "valid_acc": val_acc.avg}
+
 
 if __name__ == "__main__":
     train()
