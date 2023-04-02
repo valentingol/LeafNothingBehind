@@ -1,0 +1,11 @@
+# cache
+**cache
+**.pyc
+*/__pycache__
+# env
+.env
+egg-info
+# vscode
+.vscode
+# temporary files
+**tmp**
