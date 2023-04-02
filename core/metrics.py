@@ -10,7 +10,7 @@ class BCEDiceLoss(nn.Module):
         truth = target.view(-1)
 
         # BCE loss
-        bce_loss = nn.BCELoss()(pred, truth).double()
+        bce_loss = nn.BCELoss()(pred.float(), truth.float()).double()
 
         # Dice Loss
         dice_coef = (2.0 * (pred * truth).double().sum() + 1) / (
