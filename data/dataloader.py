@@ -1,7 +1,7 @@
 """Dataset classes."""
 
 import os.path as osp
-from typing import Optional
+from typing import Optional, Tuple
 
 from einops import rearrange
 import numpy as np
@@ -35,6 +35,9 @@ class TrainDataset(Dataset):
     data : torch.Tensor
         Tensor of shape (3, 4, 256, 256) containing the 3 time steps
         and the 4 channels (LAI, LAI mask, VV, VH).
+    time_info : torch.Tensor
+        Tensor two floats between 0 and 1 continuous and periodic
+        containing time information.
     """
 
     def __init__(self, dataset_path: str, csv_data: str,
@@ -65,15 +68,15 @@ class TrainDataset(Dataset):
             return 2 * len(self.series_df)
         return len(self.series_df)
 
-    def __getitem__(self, idx: int) -> torch.Tensor:
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """Get item at index idx."""
-        # TODO: add time feature
         if (not self.grid_augmentation) or np.random.rand() < 1/2:
             # If no grid augmentation or 50% of the time -> normal data
             # without augmentation
             if self.grid_augmentation:
                 idx = idx // 2  # Two times more data with grid augmentation
             samples_list = []
+            time_info = self._name_to_time_info(self.series_df['0'][idx])
             for tstep in ['0', '1', '2']:
                 samples_list.append(np.concatenate([
                     tif.imread(osp.join(self.s2_path,
@@ -91,6 +94,8 @@ class TrainDataset(Dataset):
             idx = idx // 2  # Two times more data with grid augmentation
             # Change idx to get a data from grids dataset
             idx_grid = int(idx / len(self.series_df) * len(self.grid_df))
+
+            time_info = self._name_to_time_info(self.grid_df['uleft0'][idx_grid])
 
             # Get a 2*2 grid of data (shape (3, 4, 512, 512))
             grid = self._get_2by2_grid(idx_grid)
@@ -127,7 +132,7 @@ class TrainDataset(Dataset):
                                                     interpolation=interpolation)
             except RuntimeError:  # When the crop is unbounded -> take the center
                 data = grid_r[:, :, 128:384, 128:384]
-        return data
+        return data, time_info
 
     def _get_2by2_grid(self, idx: int):
         """Get a 2*2 grid of available data."""
@@ -156,6 +161,24 @@ class TrainDataset(Dataset):
         grid = rearrange(grid, 'time H W c -> time c H W')
         return grid  # shape (3, 4, 512, 512)
 
+    def _name_to_time_info(self, filename: str):
+        """Parse the name of the file to get the period of time in the year
+        and transform it in two shifted periodic, linear and continuous values
+        between -1 and 1. The firt value describe the summer-winter axis and
+        the second the spring-autumn axis.
+        """
+        def periodlin_map(linear_date: float):
+            """Map a date in [0, 1] to a value in [-1, 1] with a
+            periodic linear pattern."""
+            sign = - (int((linear_date // 0.5) % 2) * 2 - 1)
+            return 4 * sign * (linear_date  - 0.5*linear_date//0.5) + 2 * (1-sign) - 1
+
+        split = filename.split('-')
+        month, day = float(split[1]), float(split[2].split('_')[0])
+        linear_date = (day / 30.0 + month - 1) / 12.0  # in [0, 1]
+        return torch.tensor([periodlin_map(linear_date),
+                             periodlin_map(linear_date - 0.25)])
+
 
 def normalize_data_np(data):
     """Normalize numpy data under the format [LAI, LAI mask, VV, VH]."""
@@ -181,7 +204,10 @@ if __name__ == '__main__':
                            csv_grid='square.csv', grid_augmentation=True)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True,
                                              num_workers=6)
-    for data in dataloader:
-        print(data.shape)
-        print(data[0, 0, :, :5, :5])
+    for data, time_info in dataloader:
+        print('time info:')
+        print(time_info)
+        print('data:')
+        print('- shape:', data.shape)
+        print('- ex:', data[0, 0, :, :5, :5])
         break
