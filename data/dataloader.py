@@ -34,7 +34,7 @@ class TrainDataset(Dataset):
     ----
     data : torch.Tensor
         Tensor of shape (3, 4, 256, 256) containing the 3 time steps
-        and the 4 channels (LAI, LAI mask, VV, VH).
+        and the 4 channels (LAI, LAI mask, VV, VH) or 14 channels (LAI, LAI mask, VV, VH, one hot masks (10,)) if all_mask=True.
     time_info : torch.Tensor
         Tensor two floats between 0 and 1 continuous and periodic
         containing time information.
@@ -42,7 +42,11 @@ class TrainDataset(Dataset):
 
     def __init__(self, dataset_path: str, csv_data: str,
                  csv_grid: Optional[str] = None,
-                 grid_augmentation: bool = False) -> None:
+                 grid_augmentation: bool = False,
+                 all_masks: bool = False,
+                 ) -> None:
+        self.all_masks = all_masks
+
         # Paths
         self.dataset_path = dataset_path
         self.s1_path = osp.join(self.dataset_path, 's1')
@@ -53,7 +57,7 @@ class TrainDataset(Dataset):
         # Data frames
         self.series_df = pd.read_csv(osp.join(self.dataset_path,
                                               csv_data))
-        if csv_grid:
+        if csv_grid and grid_augmentation:
             self.grid_df = pd.read_csv(osp.join(self.dataset_path,
                                                 csv_grid))
         else:
@@ -78,15 +82,22 @@ class TrainDataset(Dataset):
             samples_list = []
             time_info = self._name_to_time_info(self.series_df['0'][idx])
             for tstep in ['0', '1', '2']:
-                samples_list.append(np.concatenate([
+                mask_tensor = tif.imread(osp.join(self.s2m_path,
+                                             self.series_df[tstep][idx]))
+                
+                channel_list = [
                     tif.imread(osp.join(self.s2_path,
                                         self.series_df[tstep][idx]))[..., None],
-                    mask(tif.imread(osp.join(self.s2m_path,
-                                             self.series_df[tstep][idx])))[..., None],
+                    get_leaf_mask(mask_tensor)[..., None],
                     tif.imread(osp.join(self.s1_path,
                                         self.series_df[tstep][idx])),
-                ], axis=-1))
-            data_np = np.stack(samples_list, axis=0)  # shape (3, 256, 256, 4)
+                ]
+                
+                if self.all_masks:
+                    channel_list.append(get_usefull_masks(mask_tensor))
+
+                samples_list.append(np.concatenate(channel_list, axis=-1))
+            data_np = np.stack(samples_list, axis=0)  # shape (3, 256, 256, 4) or (3, 256, 256, 14)
             data_np = normalize_data_np(data_np)
             data = torch.from_numpy(data_np).float().permute(0, 3, 1, 2)
             # shape (3, 4, 256, 256)
@@ -143,10 +154,15 @@ class TrainDataset(Dataset):
             for path in [self.s2_path, self.s2m_path, self.s1_path]:
                 data = tif.imread(osp.join(path, self.grid_df[key][idx]))
                 if path == self.s2m_path:
-                    data = mask(data)
+                    masks = data
+                    data = get_leaf_mask(data)
                 if data.ndim == 2:
                     data = data[..., None]
                 sample_list.append(data)
+
+            if self.all_masks:
+                sample_list.append(get_usefull_masks(masks))
+
             sample = np.concatenate(sample_list, axis=-1)
             grid_np_list.append(sample)
         grid_np = np.stack(grid_np_list, axis=0)  # shape (4, 256, 256, 4)
@@ -181,13 +197,13 @@ class TrainDataset(Dataset):
 
 
 def normalize_data_np(data):
-    """Normalize numpy data under the format [LAI, LAI mask, VV, VH]."""
+    """Normalize numpy data under the format [LAI, LAI mask, VV, VH] or [LAI, LAI mask, VV, VH, binary masks (10)]."""
     data[..., 0] = np.clip(data[..., 0], 0, 10.0) / 5.0 # in [0, 2]
-    data[..., 2:] = data[..., 2:]/30.0 + 1.0  # in [0, 1]
+    data[..., 2:4] = data[..., 2:4]/30.0 + 1.0  # in [0, 1]
     return data
 
 
-def mask(img_mask):
+def get_leaf_mask(img_mask):
     """Transform an S2 mask (values between 1 and 9) to float32 binary.
 
     It uses the simple filter:
@@ -197,13 +213,41 @@ def mask(img_mask):
     interm = np.where(img_mask < 2, 0.0, 1.0)
     return np.where(img_mask > 6, 0.0, interm)
 
+def get_usefull_masks(img_mask):
+    """Transform an S2 mask (values between 1 and 9) to float32 one hot encoded masks.
+    0, 1, 7 -> 0 (incorrect data)
+    2 -> 1 (cast shadows)
+    3 -> 2 (cloud shadows)
+    4 -> 3 (vegetation)
+    5 -> 4 (not vegetated)
+    6 -> 5 (water)
+    8 -> 6 (cloud medium probability)
+    9 -> 7 (cloud high probability)
+    10 -> 8 (thin cirrus)
+    11 -> 9 (snow)
+
+    shape: (256, 256, 10)
+    """
+
+    transformed_mask = np.zeros(img_mask.shape + (10,), dtype=np.float32)
+
+    transformed_mask[..., 0] = np.logical_or(img_mask < 2, img_mask == 7)
+    for i in range(2, 6):
+        transformed_mask[..., i-1] = img_mask == i
+    for i in range(8, 12):
+        transformed_mask[..., i-2] = img_mask == i
+    
+    return transformed_mask
+    
+    
+
 
 if __name__ == '__main__':
     # Test the dataset and explore some data
-    dataset = TrainDataset(dataset_path='../../data', csv_data='image_series.csv',
-                           csv_grid='square.csv', grid_augmentation=True)
+    dataset = TrainDataset(dataset_path='../assignment-2023', csv_data='image_series.csv',
+                           csv_grid='../assignment-2023/square.csv', grid_augmentation=True, all_masks=True)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True,
-                                             num_workers=6)
+                                             num_workers=4)
     for data, time_info in dataloader:
         print('time info:')
         print(time_info)
