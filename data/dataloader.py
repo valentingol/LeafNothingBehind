@@ -33,7 +33,7 @@ class TrainDataset(Dataset):
     Data
     ----
     data : torch.Tensor
-        Tensor of shape (3, 4, 256, 256) containing the 3 time steps
+        Tensor of shape (3, 4, 256, 256) containing the 3 time steps, t-2, t-1, t
         and the 4 channels (LAI, LAI mask, VV, VH).
     time_info : torch.Tensor
         Tensor two floats between 0 and 1 continuous and periodic
