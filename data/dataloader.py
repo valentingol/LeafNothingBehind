@@ -33,7 +33,7 @@ class TrainDataset(Dataset):
     Data
     ----
     data : torch.Tensor
-        Tensor of shape (3, 4, 256, 256) containing the 3 time steps
+        Tensor of shape (3, 4, 256, 256) containing the 3 time steps, t-2, t-1, t
         and the 4 channels (LAI, LAI mask, VV, VH) or 14 channels (LAI, LAI mask, VV, VH, one hot masks (10,)) if all_mask=True.
     time_info : torch.Tensor
         Tensor two floats between 0 and 1 continuous and periodic
@@ -252,6 +252,6 @@ if __name__ == '__main__':
         print('time info:')
         print(time_info)
         print('data:')
-        print('- shape:', data.shape)
+        print('- shape:', data.shape, time_info.shape)
         print('- ex:', data[0, 0, :, :5, :5])
         break
