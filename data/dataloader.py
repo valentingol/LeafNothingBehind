@@ -1,7 +1,7 @@
 """Dataset classes."""
 
 import os.path as osp
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple
 
 from einops import rearrange
 import numpy as np
@@ -10,6 +10,26 @@ from torch.utils.data import Dataset
 import pandas as pd
 from tifffile import tifffile as tif
 from torchvision import transforms
+
+
+def normalize_fn(data):
+    """Normalize numpy data under the format [LAI, LAI mask, VV, VH]."""
+    # LAI
+    data[..., 0] = np.clip(data[..., 0], 0, 10.0) / 5.0 # in [0, 2]
+    # VV and VH
+    data[..., -2:] = data[..., -2:]/30.0 + 1.0  # in [0, 1]
+    return data
+
+
+def mask_fn(img_mask):
+    """Transform an S2 mask (values between 1 and 9) to float32 binary.
+
+    It uses the simple filter:
+    0, 1, 7, 8, 9 -> 0 (incorrect data)
+    other -> 1 (correct data)
+    """
+    interm = np.where(img_mask < 2, 0.0, 1.0)
+    return np.where(img_mask > 6, 0.0, interm)
 
 
 class TrainDataset(Dataset):
@@ -29,12 +49,18 @@ class TrainDataset(Dataset):
         sample an augmented data (zoom, rotation, translation) on the fly with a
         probability of 1/2 (other data unchanged). It also double
         the length of the dataset. By default False.
+    mask_fn : Callable, optional
+        Function to apply on the raw mask data (under numpy format).
+        By default, a simple binary mask is used.
+    normalize_fn : Callable, optional
+        Function to apply on the raw data (under numpy format) to normalize it.
+        A simple normalization is used by default.
 
     Data
     ----
     data : torch.Tensor
-        Tensor of shape (3, 4, 256, 256) containing the 3 time steps, t-2, t-1, t
-        and the 4 channels (LAI, LAI mask, VV, VH).
+        Tensor of shape (3, 3+c, 256, 256) containing the 3 time steps, t-2, t-1, t
+        and the 3+c channels: (LAI, (c LAI mask channels), VV, VH).
     time_info : torch.Tensor
         Tensor two floats between 0 and 1 continuous and periodic
         containing time information.
@@ -42,7 +68,9 @@ class TrainDataset(Dataset):
 
     def __init__(self, dataset_path: str, csv_data: str,
                  csv_grid: Optional[str] = None,
-                 grid_augmentation: bool = False) -> None:
+                 grid_augmentation: bool = False,
+                 mask_fn: Callable = mask_fn,
+                 normalize_fn: Callable = normalize_fn) -> None:
         # Paths
         self.dataset_path = dataset_path
         self.s1_path = osp.join(self.dataset_path, 's1')
@@ -50,6 +78,9 @@ class TrainDataset(Dataset):
         self.s2m_path = osp.join(self.dataset_path, 's2-mask')
         # Data augmentation
         self.grid_augmentation = grid_augmentation
+        # Functions
+        self.mask_fn = mask_fn
+        self.normalize_fn = normalize_fn
         # Data frames
         self.series_df = pd.read_csv(osp.join(self.dataset_path,
                                               csv_data))
@@ -81,15 +112,16 @@ class TrainDataset(Dataset):
                 samples_list.append(np.concatenate([
                     tif.imread(osp.join(self.s2_path,
                                         self.series_df[tstep][idx]))[..., None],
-                    mask(tif.imread(osp.join(self.s2m_path,
-                                             self.series_df[tstep][idx])))[..., None],
+                    self.mask_fn(tif.imread(
+                        osp.join(self.s2m_path, self.series_df[tstep][idx])
+                        ))[..., None],
                     tif.imread(osp.join(self.s1_path,
                                         self.series_df[tstep][idx])),
                 ], axis=-1))
             data_np = np.stack(samples_list, axis=0)  # shape (3, 256, 256, 4)
-            data_np = normalize_data_np(data_np)
+            data_np = self.normalize_fn(data_np)
             data = torch.from_numpy(data_np).float().permute(0, 3, 1, 2)
-            # shape (3, 4, 256, 256)
+            # shape (3, 3+c, 256, 256)
         else:
             idx = idx // 2  # Two times more data with grid augmentation
             # Change idx to get a data from grids dataset
@@ -130,7 +162,7 @@ class TrainDataset(Dataset):
             try:
                 data = transforms.functional.resize(data, (256, 256),
                                                     interpolation=interpolation)
-            except RuntimeError:  # When the crop is unbounded -> take the center
+            except RuntimeError:  # When the crop is outbounded -> take the center
                 data = grid_r[:, :, 128:384, 128:384]
         return data, time_info
 
@@ -143,20 +175,22 @@ class TrainDataset(Dataset):
             for path in [self.s2_path, self.s2m_path, self.s1_path]:
                 data = tif.imread(osp.join(path, self.grid_df[key][idx]))
                 if path == self.s2m_path:
-                    data = mask(data)
+                    data = self.mask_fn(data)
                 if data.ndim == 2:
                     data = data[..., None]
                 sample_list.append(data)
             sample = np.concatenate(sample_list, axis=-1)
             grid_np_list.append(sample)
         grid_np = np.stack(grid_np_list, axis=0)  # shape (4, 256, 256, 4)
+        # Split time and 2*2 locations on two axes
         grid_np = rearrange(grid_np,
                             '(time loc) h w c -> time loc h w c',
                             time=3, loc=4)
+        # Rearrange locations to get a 2*2 grid
         grid_np = rearrange(grid_np,
                             'time (loc1 loc2) h w c -> time (loc1 w) (loc2 h) c',
                             loc1=2, loc2=2)
-        grid_np = normalize_data_np(grid_np)
+        grid_np = self.normalize_fn(grid_np)
         grid = torch.from_numpy(grid_np).float()
         grid = rearrange(grid, 'time H W c -> time c H W')
         return grid  # shape (3, 4, 512, 512)
@@ -178,24 +212,6 @@ class TrainDataset(Dataset):
         linear_date = (day / 30.0 + month - 1) / 12.0  # in [0, 1]
         return torch.tensor([periodlin_map(linear_date),
                              periodlin_map(linear_date - 0.25)])
-
-
-def normalize_data_np(data):
-    """Normalize numpy data under the format [LAI, LAI mask, VV, VH]."""
-    data[..., 0] = np.clip(data[..., 0], 0, 10.0) / 5.0 # in [0, 2]
-    data[..., 2:] = data[..., 2:]/30.0 + 1.0  # in [0, 1]
-    return data
-
-
-def mask(img_mask):
-    """Transform an S2 mask (values between 1 and 9) to float32 binary.
-
-    It uses the simple filter:
-    0, 1, 7, 8, 9 -> 0 (incorrect data)
-    other -> 1 (correct data)
-    """
-    interm = np.where(img_mask < 2, 0.0, 1.0)
-    return np.where(img_mask > 6, 0.0, interm)
 
 
 if __name__ == '__main__':
