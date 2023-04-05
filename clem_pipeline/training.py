@@ -81,7 +81,7 @@ if __name__ == "__main__":
     weight_checkpoint_freq = 0 # 0 means no checkpoint
 
     parameters = {
-        "model_type": ModelType.ONLYS1IDEA1,
+        "model_type": ModelType.S1_MASK_IDEA2,
 
         "optimizer": "adam", #  "adam" or "sgd"
         "momentum": 0.9, # only used for sgd
