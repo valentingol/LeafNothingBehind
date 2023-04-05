@@ -1,4 +1,5 @@
 import torch 
+from torch import nn
 
 def parse_training_tensor(data: torch.Tensor):
     """
@@ -29,3 +30,30 @@ def parse_training_tensor(data: torch.Tensor):
     ts2_binary_mask = data[:, 2, 1, ...]
 
     return t2s1, t1s1, ts1, t2s2, t1s2, ts2, t2s2_mask, t1s2_mask, ts2_binary_mask
+
+class MetricTracker(object):
+    """Computes and stores the average and current value"""
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
+
+
+class WeightedMSE(nn.Module):
+    def __init__(self):
+        super(WeightedMSE, self).__init__()
+
+    def forward(self, pred, target, weight):
+        return torch.mean(weight * (pred - target) ** 2)
+    

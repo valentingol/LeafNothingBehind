@@ -5,3 +5,5 @@ tifffile==2023.3.21
 einops
 torch
 torchvision
+wandb
+tqdm

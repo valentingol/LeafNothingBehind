@@ -1,39 +1,16 @@
 import torch 
-from torch import nn 
 from data.dataloader import TrainDataset
+from tqdm import tqdm 
+import os 
+from clem_pipeline.models.custom_models import OnlyS1Idea1
+from utils import MetricTracker, parse_training_tensor, WeightedMSE
 
 
-class MetricTracker(object):
-    """Computes and stores the average and current value"""
-
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.val = 0
-        self.avg = 0
-        self.sum = 0
-        self.count = 0
-
-    def update(self, val, n=1):
-        self.val = val
-        self.sum += val * n
-        self.count += n
-        self.avg = self.sum / self.count
-
-
-class WeightedMSE(nn.Module):
-    def __init__(self):
-        super(WeightedMSE, self).__init__()
-
-    def forward(self, pred, target, weight):
-        return torch.mean(weight * (pred - target) ** 2)
-    
-
-def train_loop(dataloader, model, criterion, optimizer, loss_tracker, device):
+def train_loop(dataloader, model, criterion, optimizer, loss_tracker, device, epoch):
     model.train()
 
-    for data, timestamp in dataloader:
+    loader = tqdm(dataloader, desc="training")
+    for data, timestamp in loader:
         data.to(device)
         timestamp.to(device)
 
@@ -44,15 +21,17 @@ def train_loop(dataloader, model, criterion, optimizer, loss_tracker, device):
         loss = criterion(pred, ts2, ts2_binary_mask)
 
         loss_tracker.update(loss.item(), data.size(0))
+        loader.set_description(f"Training Loss: {loss_tracker.avg:.4f}")
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
-def val_loop(dataloader, model, criterion, loss_tracker, device):
+def val_loop(dataloader, model, criterion, loss_tracker, device, epoch):
     model.eval()
 
-    for data, timestamp in dataloader:
+    loader = tqdm(dataloader, desc="validation")
+    for data, timestamp in loader:
         data.to(device)
         timestamp.to(device)
 
@@ -63,59 +42,116 @@ def val_loop(dataloader, model, criterion, loss_tracker, device):
             loss = criterion(pred, ts2, ts2_binary_mask)
 
         loss_tracker.update(loss.item(), data.size(0))
+        loader.set_description(f"Validation Loss: {loss_tracker.avg:.4f}")
+    
+def get_default_run_name():
+    import datetime
+    now = datetime.datetime.now()
+    return now.strftime("%Y-%m-%d_%H-%M-%S")
+
+def get_model(parameters):
+    match parameters["model_type"]:
+        case ModelType.ONLYS1IDEA1:
+            return OnlyS1Idea1()
+        case _:
+            raise ValueError(f"Model type {parameters['model_type']} not implemented")
+
+def get_optimizer(parameters, model):
+    match parameters["optimizer"]:
+        case "adam":
+            return torch.optim.Adam(model.parameters(), lr=parameters["lr"])
+        
+        case "sgd":
+            return torch.optim.SGD(model.parameters(), lr=parameters["lr"], momentum=parameters["momentum"])
+
+def get_lr_scheduler(
+    parameters, optimizer: torch.optim.Optimizer,
+) -> torch.optim.lr_scheduler._LRScheduler:
+    return (
+        torch.optim.lr_scheduler.MultiStepLR(
+            optimizer,
+            milestones=parameters["lr_decay_epochs"],
+            gamma=parameters["lr_decay"],
+        )
+        if parameters["use_lr_decay"]
+        else torch.optim.lr_scheduler.LambdaLR(optimizer, lambda _: 1)
+    )
 
 if __name__ == "__main__":
-    from clem_pipeline.utils import parse_training_tensor
-    from clem_pipeline.models.custom_models import OnlyS1Idea1
+    from clem_pipeline.models.custom_models import ModelType
 
     use_wandb = False
+    
+    run_name = None
+    weight_checkpoint_freq = 0 # 0 means no checkpoint
 
     parameters = {
-        "batch_size": 4,
+        "model_type": ModelType.ONLYS1IDEA1,
+
+        "optimizer": "adam", #  "adam" or "sgd"
+        "momentum": 0.9, # only used for sgd
+
         "lr": 1e-3,
+        "use_lr_decay": True,
+        "lr_decay": 0.5,
+        "lr_decay_epochs": [10, 20, 30],
+
         "epochs": 10,
+        "batch_size": 4,
+
+        "num_workers": 4,
+        "pin_memory": True,
+
+        "saving_folder": "saved_weights",
+
         "device": "cuda" if torch.cuda.is_available() else "cpu",
     }
 
     if use_wandb:
         import wandb
 
-        wandb.init(project="PROJECT_NAME", entity="clem", config=parameters)
+        wandb.init(project="PROJECT_NAME", config=parameters)
 
         parameters = wandb.config # for sweep
 
+        run_name = wandb.run.name
+
+    if run_name is None:
+        run_name = get_default_run_name()
 
     print(f"Using {parameters['device']} device")
 
     dataset = TrainDataset(dataset_path='../assignment-2023', csv_data='image_series.csv',
                             csv_grid='../assignment-2023/square.csv', grid_augmentation=True, all_masks=True)
-    train_dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True,
-                                                num_workers=4)
-    val_dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True,
-                                                num_workers=4)
+    train_dataloader = torch.utils.data.DataLoader(dataset, batch_size=parameters["batch_size"], shuffle=True,
+                                                num_workers=parameters["num_workers"], pin_memory=parameters["pin_memory"])
+    val_dataloader = torch.utils.data.DataLoader(dataset, batch_size=parameters["batch_size"], shuffle=False,
+                                                num_workers=parameters["num_workers"], pin_memory=parameters["pin_memory"])
 
-    model = OnlyS1Idea1().to(parameters['device'])
+    model = get_model(parameters).to(parameters['device'])
     criterion = WeightedMSE()
+    optimizer = get_optimizer(parameters, model)
+    lr_scheduler = get_lr_scheduler(parameters, optimizer)
+
     train_loss_tracker = MetricTracker()
     val_loss_tracker = MetricTracker()
-    optimizer = torch.optim.Adam(model.parameters(), lr=parameters['lr'])
-
     best_val_loss = float("inf")
 
     for epoch in range(parameters['epochs']):
-
-        print(f"Epoch {epoch}")
         train_loss_tracker.reset()
         val_loss_tracker.reset()
 
-        train_loop(train_dataloader, model, criterion, optimizer, train_loss_tracker, parameters['device'])
-        val_loop(val_dataloader, model, criterion, val_loss_tracker, parameters['device'])
+        train_loop(train_dataloader, model, criterion, optimizer, train_loss_tracker, parameters['device'], epoch)
+        val_loop(val_dataloader, model, criterion, val_loss_tracker, parameters['device'], epoch)
 
+        if weight_checkpoint_freq and (epoch+1) % weight_checkpoint_freq == 0:
+            torch.save(model.state_dict(), os.path.join(parameters["saving_folder"], f"{run_name}_epoch_{epoch+1}.pth"))
         
         if val_loss_tracker.avg < best_val_loss:
             best_val_loss = val_loss_tracker.avg
-            # save model ?
+            torch.save(model.state_dict(), os.path.join(parameters["saving_folder"], f"{run_name}_best.pth"))
 
-        # wandb
-        print(f"ep:{epoch}/{parameters['epochs']}| train loss: {train_loss_tracker.avg:.4f} | val loss: {val_loss_tracker.avg:.4f} | best val loss: {best_val_loss:.4f}")
-
+        if use_wandb:
+            wandb.log({"train_loss": train_loss_tracker.avg, "val_loss": val_loss_tracker.avg, "best_val_loss": best_val_loss})
+        
+        lr_scheduler.step()

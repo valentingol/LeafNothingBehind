@@ -1,6 +1,11 @@
 from clem_pipeline.models.unet_module import UNet
 from torch import nn 
 import torch 
+from enum import Enum
+
+
+class ModelType(str, Enum):
+    ONLYS1IDEA1 = "OnlyS1Idea1"
 
 class OnlyS1Idea1(nn.Module):
     def __init__(self, bilinear=False):
