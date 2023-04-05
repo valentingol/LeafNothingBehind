@@ -9,3 +9,5 @@
 .vscode
 # temporary files
 **tmp**
+# wandb
+wandb
