@@ -1,0 +1,1 @@
+"""Leaf Nothing Behind project."""
