@@ -109,12 +109,15 @@ class TrainDataset(Dataset):
             samples_list = []
             time_info = self._name_to_time_info(self.series_df['0'][idx])
             for tstep in ['0', '1', '2']:
+                mask_lai = self.mask_fn(tif.imread(
+                        osp.join(self.s2m_path, self.series_df[tstep][idx])
+                        ))
+                if mask_lai.ndim == 2:
+                    mask_lai = mask_lai[..., None]
                 samples_list.append(np.concatenate([
                     tif.imread(osp.join(self.s2_path,
                                         self.series_df[tstep][idx]))[..., None],
-                    self.mask_fn(tif.imread(
-                        osp.join(self.s2m_path, self.series_df[tstep][idx])
-                        ))[..., None],
+                    mask_lai,
                     tif.imread(osp.join(self.s1_path,
                                         self.series_df[tstep][idx])),
                 ], axis=-1))
