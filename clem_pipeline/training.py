@@ -2,8 +2,8 @@ import torch
 from data.dataloader import TrainDataset
 from tqdm import tqdm 
 import os 
-from clem_pipeline.models.custom_models import OnlyS1Idea1
-from utils import MetricTracker, parse_training_tensor, WeightedMSE
+from clem_pipeline.models.custom_models import get_model
+from clem_pipeline.utils import MetricTracker, parse_training_tensor, WeightedMSE
 
 
 def train_loop(dataloader, model, criterion, optimizer, loss_tracker, device, epoch):
@@ -16,7 +16,7 @@ def train_loop(dataloader, model, criterion, optimizer, loss_tracker, device, ep
 
         t2s1, t1s1, ts1, t2s2, t1s2, ts2, t2s2_mask, t1s2_mask, ts2_binary_mask = parse_training_tensor(data)
 
-        pred = model(t2s1, t1s1, ts1, t2s2, t1s2, t2s2_mask, t1s2_mask)
+        pred = model(t2s1, t1s1, ts1, t2s2, t1s2, t2s2_mask, t1s2_mask, timestamp)
 
         loss = criterion(pred, ts2, ts2_binary_mask)
 
@@ -49,12 +49,7 @@ def get_default_run_name():
     now = datetime.datetime.now()
     return now.strftime("%Y-%m-%d_%H-%M-%S")
 
-def get_model(parameters):
-    match parameters["model_type"]:
-        case ModelType.ONLYS1IDEA1:
-            return OnlyS1Idea1()
-        case _:
-            raise ValueError(f"Model type {parameters['model_type']} not implemented")
+
 
 def get_optimizer(parameters, model):
     match parameters["optimizer"]:
