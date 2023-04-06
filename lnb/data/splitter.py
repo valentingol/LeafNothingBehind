@@ -646,7 +646,7 @@ def clean_empty_key(array):
 
 def create_csv(datasets):
 
-    dir = f"{os.path.join('./', 'train_val_test_datasets')}"
+    dir = f"{os.path.join('../../', 'csv')}"
 
     if os.path.exists(dir):
         shutil.rmtree(dir)
@@ -655,16 +655,7 @@ def create_csv(datasets):
 
     for dataset_name, _ in datasets.items():
 
-        splits = dataset_name.split("-")
-
-        path = ""
-
-        if os.path.exists(os.path.join(dir, splits[0])) is False:
-            os.mkdir(os.path.join(dir, splits[0]))
-
-        path = os.path.join(os.path.join(dir, splits[0]), f"{splits[1]}.csv")
-
-        with open(path, 'w', newline='') as csvfile:
+        with open(os.path.join(dir, dataset_name), 'w', newline='') as csvfile:
             # Création de l'objet writer CSV
             writer = csv.writer(csvfile)
 
@@ -678,13 +669,11 @@ def create_csv(datasets):
                                 [f"{key}-0-0-{i}-{j}.tiff", f"{key}-1-0-{i}-{j}.tiff", f"{key}-2-0-{i}-{j}.tiff"])
 
 
-def size_check(dir_type, metrics_type):
+def size_check(file):
 
-    dir = f"{os.path.join('./', 'train_val_test_datasets')}"
+    dir = f"{os.path.join('../../', 'csv')}"
 
-    data_type = osp.join(dir, dir_type)
-
-    csv_path = osp.join(data_type, metrics_type)
+    csv_path = osp.join(dir, file)
 
     series = pd.read_csv(csv_path)
 
@@ -695,15 +684,12 @@ def size_check(dir_type, metrics_type):
 
 def get_all_grids(array):
 
-    dir = f"{os.path.join('./', 'train_val_test_datasets')}"
+    dir = f"{os.path.join('../../', 'csv')}"
 
     grids_array = {}
     for el in array:
-        split = el.split("-")
 
-        data_type = osp.join(dir, split[0])
-
-        csv_path = osp.join(data_type, split[1])
+        csv_path = osp.join(dir, el)
 
         series = pd.read_csv(csv_path)
 
@@ -720,38 +706,38 @@ def test_csv(data_path):
     print("===============")
 
     print("Check size for train dataset taken from CSV",
-          size_check("train", "regular_dataset.csv"))
+          size_check("train_regular.csv"))
 
     print("Check size for val generalisation dataset taken from CSV = ", size_check(
-        "validation", "generalisation_dataset.csv"))
+        "validation_generalisation.csv"))
     print("Check size for test generalisation dataset taken from CSV = ", size_check(
-        "test", "generalisation_dataset.csv"))
+        "test_generalisation.csv"))
 
     print("Check size for val s1 difference dataset taken from CSV = ", size_check(
-        "validation", "s1_difference_dataset.csv"))
+        "validation_s1_difference.csv"))
     print("Check size for test s1 difference dataset taken from CSV = ", size_check(
-        "test", "s1_difference_dataset.csv"))
+        "test_s1_difference.csv"))
 
     print("Check size for val regular dataset taken from CSV = ", size_check(
-        "validation", "regular_dataset.csv"))
+        "validation_regular.csv"))
     print("Check size for test regular dataset taken from CSV = ", size_check(
-        "test", "regular_dataset.csv"))
+        "test_regular.csv"))
 
-    grids_array = get_all_grids(["train-regular_dataset.csv",
-                                "validation-generalisation_dataset.csv",
-                                 "test-generalisation_dataset.csv",
-                                 "validation-s1_difference_dataset.csv",
-                                 "test-s1_difference_dataset.csv",
-                                 "validation-regular_dataset.csv",
-                                 "test-regular_dataset.csv"])
+    grids_array = get_all_grids(["train_regular.csv",
+                                 "validation_generalisation.csv",
+                                 "test_generalisation.csv",
+                                 "validation_s1_difference.csv",
+                                 "test_s1_difference.csv",
+                                 "validation_regular.csv",
+                                 "test_regular.csv"])
 
-    final_checkers(grids_array["train-regular_dataset.csv"],
-                   grids_array["validation-generalisation_dataset.csv"],
-                   grids_array["test-generalisation_dataset.csv"],
-                   grids_array["validation-s1_difference_dataset.csv"],
-                   grids_array["test-s1_difference_dataset.csv"],
-                   grids_array["validation-regular_dataset.csv"],
-                   grids_array["test-regular_dataset.csv"],
+    final_checkers(grids_array["train_regular.csv"],
+                   grids_array["validation_generalisation.csv"],
+                   grids_array["test_generalisation.csv"],
+                   grids_array["validation_s1_difference.csv"],
+                   grids_array["test_s1_difference.csv"],
+                   grids_array["validation_regular.csv"],
+                   grids_array["test_regular.csv"],
                    data_path)
 
 
@@ -793,13 +779,13 @@ if __name__ == '__main__':
         test_regular_dataset,
         DATA_PATH)
 
-    create_csv({"train-regular_dataset": train_data_set,
-               "validation-generalisation_dataset": val_generalisation_dataset,
-                "test-generalisation_dataset": test_generalisation_dataset,
-                "validation-s1_difference_dataset": val_s1_difference_dataset,
-                "test-s1_difference_dataset": test_s1_difference_dataset,
-                "validation-regular_dataset": val_regular_dataset,
-                "test-regular_dataset": test_regular_dataset})
+    create_csv({"train_regular.csv": train_data_set,
+               "validation_generalisation.csv": val_generalisation_dataset,
+                "test_generalisation.csv": test_generalisation_dataset,
+                "validation_s1_difference.csv": val_s1_difference_dataset,
+                "test_s1_difference.csv": test_s1_difference_dataset,
+                "validation_regular.csv": val_regular_dataset,
+                "test_regular.csv": test_regular_dataset})
 
     test_csv(DATA_PATH)
 
