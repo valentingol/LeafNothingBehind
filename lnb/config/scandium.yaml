@@ -1,7 +1,7 @@
 
 data:
-  dataset_path: '../../data'
-  csv_data: 'image_series.csv'
+  dataset_path: '../data'
+  csv_data_path: './csv/train_regular.csv'
   csv_grid: 'square.csv'
   grid_augmentation: false
 dataloader:

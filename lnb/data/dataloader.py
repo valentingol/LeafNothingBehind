@@ -15,9 +15,9 @@ from torchvision import transforms
 def normalize_fn(data):
     """Normalize numpy data under the format [LAI, LAI mask, VV, VH]."""
     # LAI
-    data[..., 0] = np.clip(data[..., 0], 0, 10.0) / 5.0 # in [0, 2]
+    data[..., 0] = np.clip(data[..., 0], 0, 10.0) / 5.0  # in [0, 2]
     # VV and VH
-    data[..., -2:] = data[..., -2:]/30.0 + 1.0  # in [0, 1]
+    data[..., -2:] = data[..., -2:] / 30.0 + 1.0  # in [0, 1]
     return data
 
 
@@ -66,7 +66,7 @@ class TrainDataset(Dataset):
         containing time information.
     """
 
-    def __init__(self, dataset_path: str, csv_data: str,
+    def __init__(self, dataset_path: str, csv_data_path: str,
                  csv_grid: Optional[str] = None,
                  grid_augmentation: bool = False,
                  mask_fn: Callable = mask_fn,
@@ -82,9 +82,8 @@ class TrainDataset(Dataset):
         self.mask_fn = mask_fn
         self.normalize_fn = normalize_fn
         # Data frames
-        self.series_df = pd.read_csv(osp.join(self.dataset_path,
-                                              csv_data))
-        if csv_grid:
+        self.series_df = pd.read_csv(csv_data_path)
+        if csv_grid and grid_augmentation:
             self.grid_df = pd.read_csv(osp.join(self.dataset_path,
                                                 csv_grid))
         else:
@@ -101,7 +100,7 @@ class TrainDataset(Dataset):
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """Get item at index idx."""
-        if (not self.grid_augmentation) or np.random.rand() < 1/2:
+        if (not self.grid_augmentation) or np.random.rand() < 1 / 2:
             # If no grid augmentation or 50% of the time -> normal data
             # without augmentation
             if self.grid_augmentation:
@@ -110,8 +109,8 @@ class TrainDataset(Dataset):
             time_info = self._name_to_time_info(self.series_df['0'][idx])
             for tstep in ['0', '1', '2']:
                 mask_lai = self.mask_fn(tif.imread(
-                        osp.join(self.s2m_path, self.series_df[tstep][idx])
-                        ))
+                    osp.join(self.s2m_path, self.series_df[tstep][idx])
+                ))
                 if mask_lai.ndim == 2:
                     mask_lai = mask_lai[..., None]
                 samples_list.append(np.concatenate([
@@ -139,16 +138,16 @@ class TrainDataset(Dataset):
             for _ in range(np.random.randint(4)):
                 grid = torch.rot90(grid, 1, (2, 3))
             # Random flip (horizontal or vertical)
-            if np.random.rand() < 1/2:
+            if np.random.rand() < 1 / 2:
                 grid = grid.flip(2)
-            if np.random.rand() < 1/2:
+            if np.random.rand() < 1 / 2:
                 grid = grid.flip(3)
 
             # 0-90° rotation and zoom augmentation
             zoom = 1 + (np.random.rand() - 0.5) * 0.6   # zoom > 1 => close to earth
             theta = np.random.rand() * 90
             interpolation = transforms.InterpolationMode.BILINEAR
-            size = int(256 * (2-zoom))  # size of the crop
+            size = int(256 * (2 - zoom))  # size of the crop
             # Rotate without cropping
             grid_r = transforms.functional.rotate(grid, theta,
                                                   interpolation=interpolation,
@@ -160,7 +159,7 @@ class TrainDataset(Dataset):
             x_max = ext - size - x_min
             x = int(np.random.rand() * (x_max - x_min) + x_min)
             y = int(np.random.rand() * (x_max - x_min) + x_min)
-            data = grid_r[:, :, y:y+size, x:x+size]
+            data = grid_r[:, :, y:y + size, x:x + size]
             # Resize to 256x256
             try:
                 data = transforms.functional.resize(data, (256, 256),
@@ -208,7 +207,7 @@ class TrainDataset(Dataset):
             """Map a date in [0, 1] to a value in [-1, 1] with a
             periodic linear pattern."""
             sign = - (int((linear_date // 0.5) % 2) * 2 - 1)
-            return 4 * sign * (linear_date  - 0.5*linear_date//0.5) + 2 * (1-sign) - 1
+            return 4 * sign * (linear_date - 0.5 * linear_date // 0.5) + 2 * (1 - sign) - 1
 
         split = filename.split('-')
         month, day = float(split[1]), float(split[2].split('_')[0])
