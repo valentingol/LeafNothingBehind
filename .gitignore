@@ -11,6 +11,5 @@
 **tmp**
 # wandb
 wandb
-
-#conda env
+# conda env
 environment.yml
