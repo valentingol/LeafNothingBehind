@@ -3,8 +3,8 @@ import argparse
 import os
 from typing import Dict
 
-import numpy as np
 from time import time
+import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
@@ -12,7 +12,7 @@ import wandb
 import yaml
 
 from lnb.architecture.models import Scandium
-from lnb.data.dataloader import TrainDataset
+from lnb.data.dataset import TrainDataset
 from lnb.training.metrics import mse_loss
 
 
