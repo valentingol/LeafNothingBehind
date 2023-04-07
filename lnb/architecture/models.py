@@ -3,8 +3,8 @@
 import abc
 from typing import Dict
 
-from einops import rearrange
 import torch
+from einops import rearrange
 from torch import nn
 
 from lnb.architecture.modules import AutoEncoder
@@ -124,6 +124,9 @@ class Scandium(nn.Module):
                     nn.ReLU()
                     )
         # Convolutional block
+        first_dim = (mask_out_dim * 2 + glob_module_dims[-1]
+                     + s1_ae_config['out_dim'] * 2 + 3)
+        conv_block_dims = [first_dim] + conv_block_dims
         self.conv_block = nn.Sequential()
         for i in range(len(conv_block_dims) - 1):
             if i == 0:
@@ -144,7 +147,7 @@ class Scandium(nn.Module):
         self.last_conv.add_module(
             f"conv_{len(conv_block_dims)}",
             nn.Conv2d(conv_block_dims[-1] + 2, 1,
-                          kernel_size=1, stride=1, padding=0)
+                      kernel_size=1, stride=1, padding=0)
         )
 
     def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor,
@@ -165,14 +168,14 @@ class Scandium(nn.Module):
         s1_input = rearrange(s1_embed[:, :2], "batch t c h w -> batch (t c) h w")
         in_lai = torch.squeeze(in_lai, dim=2)  # (batch, c, h, w)
         t_input = torch.cat([in_lai, mask_lai_embed, s1_input],
-                             dim=1)  # (batch, c, h, w)
+                            dim=1)  # (batch, c, h, w)
         # Global features embedding
         glob = rearrange(glob, "batch c -> batch c 1 1")
-        glob = glob.repeat(1, 1, size[0], size[1]) # (batch, c, h, w)
+        glob = glob.repeat(1, 1, size[0], size[1])  # (batch, c, h, w)
         glob = self.conv_glob(glob)  # (batch, c, h, w)
 
         # Final convolutional block
-        x = torch.cat([t_input, glob, s1_embed[:, 2]], dim=1) # (batch, c, h, w)
+        x = torch.cat([t_input, glob, s1_embed[:, 2]], dim=1)  # (batch, c, h, w)
         for layer in self.conv_block:
             x = layer(x)
             if layer._get_name() == 'ReLU':  # pylint: disable=protected-access
