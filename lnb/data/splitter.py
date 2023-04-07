@@ -1,79 +1,65 @@
-import os
-import os.path as osp
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib
-from tifffile import tifffile as tif
-import pandas as pd
+"""Train/validation/test data splitter functions."""
 import copy
 import csv
+import os
+import os.path as osp
 import shutil
+
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from tifffile import tifffile as tif
 
 
 def grid_show(grid, tittle, clim_max=None):
+    """Show a grid of images."""
     if clim_max is None:
         maxi = 0
         for key, _ in grid.items():
             if np.max(grid[key]) > maxi:
                 maxi = grid[key].max()
         clim_max = maxi
-
     fig, axes = plt.subplots(6, 4, figsize=(20, 30))
-
     plt.title(tittle)
 
     for i, key in enumerate(grid.keys()):
-
-        ax = axes[i // 4, i % 4]
-
-        ax.set_title(f"{key} || {tittle}")
-        ax.axis("off")
-        # Ajouter la barre de couleur
-
+        ax_ = axes[i // 4, i % 4]
+        ax_.set_title(f"{key} || {tittle}")
+        ax_.axis("off")
+        # Add color bar
         cmap = matplotlib.colormaps.get_cmap("jet")
         norm = plt.Normalize(vmin=0, vmax=clim_max)
-
-        im = ax.imshow(grid[key], cmap="jet", norm=norm)
-
-        im.set_cmap(cmap)
-
-        im.set_clim(0, clim_max)
-
-        cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        img = ax_.imshow(grid[key], cmap="jet", norm=norm)
+        img.set_cmap(cmap)
+        img.set_clim(0, clim_max)
+        cbar = fig.colorbar(img, ax=ax_, fraction=0.046, pad=0.04)
         cbar.ax.set_ylabel("Valeur")
 
     plt.show(block=False)
 
 
 def goss_show(array, tittle):
-
-    # data = np.random.normal(size=10000)
-
+    """Show distribution of a numpy array."""
     data = array.flatten()
-
     data = np.delete(data, np.where(data == 0))
-
-    # Calculer l'histogramme des données
+    # Compute data histogram
     hist, bins = np.histogram(data, bins=150)
-
-    # Calculer les pourcentages des valeurs d'histogramme
+    # Compute histogram percentage
     hist_percent = hist / np.sum(hist)
-
-    # Tracer la courbe de distribution
+    # Draw distribution curve
     plt.plot(bins[:-1], hist_percent)
 
-    # Ajouter des étiquettes d'axe et un titre
     plt.xlabel('Valeurs')
     plt.ylabel('Pourcentage')
     plt.title(f'Courbe de distribution {tittle}')
-
     plt.show(block=False)
 
 
 def grid_exploration(series):
+    """Grid exploration."""
     grids = {}
     grids_size = {}
-
     for line in series.itertuples():
         name = line[1]
         split = name.split('-')
@@ -83,28 +69,26 @@ def grid_exploration(series):
             grids_size[head] = 0
         grids[head][row, col] = 1
         grids_size[head] += 1
-
     return grids, grids_size
 
 
 def val_test_proportion_for_each_grid(validation_test_percent, grids_size):
-    grids_validation_test_size = {}
+    """Compute validation/test proportion for each grid."""
+    grids_valtest_size = {}
     total_val_test_data_size = 0
-
     for grids_name, size in grids_size.items():
         if grids_name == "KALININGRAD_GUSEV_2018-04-07_2018-04-19":
-            grids_validation_test_size[grids_name] = size
+            grids_valtest_size[grids_name] = size
         else:
-            grids_validation_test_size[grids_name] = int(size * validation_test_percent / 100)
-        total_val_test_data_size += grids_validation_test_size[grids_name]
-
-    return grids_validation_test_size, total_val_test_data_size
+            grids_valtest_size[grids_name] = int(size * validation_test_percent / 100)
+        total_val_test_data_size += grids_valtest_size[grids_name]
+    return grids_valtest_size, total_val_test_data_size
 
 
 def get_data_corner_limits(grid):
+    """Get data corner limits."""
     up_right_corner_limits = [0, 32]
     down_left_corner_limits = [32, 0]
-
     for row in range(33):
         for col in range(33):
             if grid[row, col] == 1:
@@ -121,6 +105,7 @@ def get_data_corner_limits(grid):
 
 
 def get_missing_data_indexes(grid):
+    """Get missing data indexes."""
     missing_data_indexes = []
 
     down_left_corner_limits, up_right_corner_limits = get_data_corner_limits(grid)
@@ -137,30 +122,30 @@ def get_missing_data_indexes(grid):
 
 
 def cross_check_for_whole(grid, valid_datas_index, data_index_0, data_index_1):
-    """
-    Check for empty space with valid data between 2 datas already selected for the validation/test dataset
+    """Check for empty space with valid data between two data
+    already selected for the validation/test dataset.
     """
     if data_index_0 < 31:
-        if valid_datas_index[data_index_0 + 2,
-                             data_index_1] == 1 and grid[data_index_0 + 1, data_index_1] == 1:
+        if (valid_datas_index[data_index_0 + 2, data_index_1] == 1
+                and grid[data_index_0 + 1, data_index_1] == 1):
             if valid_datas_index[data_index_0 + 1][data_index_1] == 0:
                 valid_datas_index[data_index_0 + 1][data_index_1] = 1
                 return True
     if data_index_0 > 1:
-        if valid_datas_index[data_index_0 - 2,
-                             data_index_1] == 1 and grid[data_index_0 - 1, data_index_1] == 1:
+        if (valid_datas_index[data_index_0 - 2, data_index_1] == 1
+                and grid[data_index_0 - 1, data_index_1] == 1):
             if valid_datas_index[data_index_0 - 1][data_index_1] == 0:
                 valid_datas_index[data_index_0 - 1][data_index_1] = 1
                 return True
     if data_index_1 < 31:
-        if valid_datas_index[data_index_0, data_index_1 +
-                             2] == 1 and grid[data_index_0, data_index_1 + 1] == 1:
+        if (valid_datas_index[data_index_0, data_index_1 + 2] == 1
+                and grid[data_index_0, data_index_1 + 1] == 1):
             if valid_datas_index[data_index_0][data_index_1 + 1] == 0:
                 valid_datas_index[data_index_0][data_index_1 + 1] = 1
                 return True
     if data_index_1 > 1:
-        if valid_datas_index[data_index_0, data_index_1 -
-                             2] == 1 and grid[data_index_0, data_index_1 - 1] == 1:
+        if (valid_datas_index[data_index_0, data_index_1 - 2] == 1
+                and grid[data_index_0, data_index_1 - 1] == 1):
             if valid_datas_index[data_index_0][data_index_1 - 1] == 0:
                 valid_datas_index[data_index_0][data_index_1 - 1] = 1
                 return True
@@ -168,13 +153,15 @@ def cross_check_for_whole(grid, valid_datas_index, data_index_0, data_index_1):
 
 def get_border_data(grid, number_of_data_for_valtest_for_a_grid,
                     valid_datas_index, expected_grid_validation_test_size):
+    """Get border data."""
 
     down_left_corner_limits, up_right_corner_limits = get_data_corner_limits(grid)
 
     for row in range(down_left_corner_limits[0], up_right_corner_limits[0] + 1):
         for col in range(up_right_corner_limits[1], down_left_corner_limits[1] + 1):
-            if grid[row, col] == 1 and valid_datas_index[row,
-                                                         col] == 0 and number_of_data_for_valtest_for_a_grid < expected_grid_validation_test_size:
+            if (grid[row, col] == 1 and valid_datas_index[row, col] == 0
+                    and number_of_data_for_valtest_for_a_grid
+                    < expected_grid_validation_test_size):
                 valid_datas_index[row, col] = 1
                 number_of_data_for_valtest_for_a_grid += 1
 
@@ -182,26 +169,28 @@ def get_border_data(grid, number_of_data_for_valtest_for_a_grid,
 
 
 def valid_datas_arround_missing_datas(grid, missing_data_indexes,
-                                      expected_grid_validation_test_size, valid_datas_index, number_of_data_for_valtest_for_a_grid):
+                                      expected_grid_validation_test_size,
+                                      valid_datas_index,
+                                      number_of_data_for_valtest_for_a_grid):
     """
     Get the validation/test data from near to the more missing data possible
-    and then get the data arround (of the missing datas)
+    and then get the data around (of the missing data)
     and then get the data from the border if it's not enough
     """
 
-    for i in range(16):
+    for _ in range(16):
         for data_index in missing_data_indexes:
-            if number_of_data_for_valtest_for_a_grid < expected_grid_validation_test_size:
-                """
-                Perfom a vertical and horizontal cross check to get the valid data arround the missing data
-                """
+            if (number_of_data_for_valtest_for_a_grid
+                    < expected_grid_validation_test_size):
+                # Perform a vertical and horizontal cross check
+                # to get the valid data around the missing data
                 if data_index[0] < 32:
                     if grid[data_index[0] + 1, data_index[1]] == 1:
                         if valid_datas_index[data_index[0] + 1][data_index[1]] == 0:
                             valid_datas_index[data_index[0] + 1][data_index[1]] = 1
                             number_of_data_for_valtest_for_a_grid += 1
-                            continue
-                        elif cross_check_for_whole(grid, valid_datas_index, data_index[0] + 1, data_index[1]):
+                        if cross_check_for_whole(grid, valid_datas_index,
+                                                 data_index[0] + 1, data_index[1]):
                             number_of_data_for_valtest_for_a_grid += 1
                             continue
                 if data_index[0] > 0:
@@ -209,8 +198,8 @@ def valid_datas_arround_missing_datas(grid, missing_data_indexes,
                         if valid_datas_index[data_index[0] - 1][data_index[1]] == 0:
                             valid_datas_index[data_index[0] - 1][data_index[1]] = 1
                             number_of_data_for_valtest_for_a_grid += 1
-                            continue
-                        elif cross_check_for_whole(grid, valid_datas_index, data_index[0] - 1, data_index[1]):
+                        if cross_check_for_whole(grid, valid_datas_index, data_index[0]
+                                                 - 1, data_index[1]):
                             number_of_data_for_valtest_for_a_grid += 1
                             continue
                 if data_index[1] < 32:
@@ -218,8 +207,8 @@ def valid_datas_arround_missing_datas(grid, missing_data_indexes,
                         if valid_datas_index[data_index[0]][data_index[1] + 1] == 0:
                             valid_datas_index[data_index[0]][data_index[1] + 1] = 1
                             number_of_data_for_valtest_for_a_grid += 1
-                            continue
-                        elif cross_check_for_whole(grid, valid_datas_index, data_index[0], data_index[1] + 1):
+                        if cross_check_for_whole(grid, valid_datas_index,
+                                                 data_index[0], data_index[1] + 1):
                             number_of_data_for_valtest_for_a_grid += 1
                             continue
                 if data_index[1] > 0:
@@ -227,22 +216,21 @@ def valid_datas_arround_missing_datas(grid, missing_data_indexes,
                         if valid_datas_index[data_index[0]][data_index[1] - 1] == 0:
                             valid_datas_index[data_index[0]][data_index[1] - 1] = 1
                             number_of_data_for_valtest_for_a_grid += 1
-                            continue
-                        elif cross_check_for_whole(grid, valid_datas_index, data_index[0], data_index[1] - 1):
+                        if cross_check_for_whole(grid, valid_datas_index,
+                                                 data_index[0], data_index[1] - 1):
                             number_of_data_for_valtest_for_a_grid += 1
                             continue
 
-                """
-                Perfom a diagonal cross to get the valid data arrround the missing data
-                """
-
+                # Perform a diagonal cross to get the valid data
+                # around the missing data
                 if data_index[0] < 32 and data_index[1] > 0:
                     if grid[data_index[0] + 1, data_index[1] - 1] == 1:
                         if valid_datas_index[data_index[0] + 1][data_index[1] - 1] == 0:
                             valid_datas_index[data_index[0] + 1][data_index[1] - 1] = 1
                             number_of_data_for_valtest_for_a_grid += 1
-                            continue
-                        elif cross_check_for_whole(grid, valid_datas_index, data_index[0] + 1, data_index[1] - 1):
+                        if cross_check_for_whole(grid, valid_datas_index,
+                                                 data_index[0] + 1,
+                                                 data_index[1] - 1):
                             number_of_data_for_valtest_for_a_grid += 1
                             continue
                 if data_index[0] > 0 and data_index[1] > 0:
@@ -250,8 +238,9 @@ def valid_datas_arround_missing_datas(grid, missing_data_indexes,
                         if valid_datas_index[data_index[0] - 1][data_index[1] - 1] == 0:
                             valid_datas_index[data_index[0] - 1][data_index[1] - 1] = 1
                             number_of_data_for_valtest_for_a_grid += 1
-                            continue
-                        elif cross_check_for_whole(grid, valid_datas_index, data_index[0] - 1, data_index[1] - 1):
+                        if cross_check_for_whole(grid, valid_datas_index,
+                                                 data_index[0] - 1,
+                                                 data_index[1] - 1):
                             number_of_data_for_valtest_for_a_grid += 1
                             continue
                 if data_index[1] < 32 and data_index[0] > 0:
@@ -259,8 +248,9 @@ def valid_datas_arround_missing_datas(grid, missing_data_indexes,
                         if valid_datas_index[data_index[0] - 1][data_index[1] + 1] == 0:
                             valid_datas_index[data_index[0] - 1][data_index[1] + 1] = 1
                             number_of_data_for_valtest_for_a_grid += 1
-                            continue
-                        elif cross_check_for_whole(grid, valid_datas_index, data_index[0] - 1, data_index[1] + 1):
+                        if cross_check_for_whole(grid, valid_datas_index,
+                                                 data_index[0] - 1,
+                                                 data_index[1] + 1):
                             number_of_data_for_valtest_for_a_grid += 1
                             continue
                 if data_index[0] < 32 and data_index[1] < 32:
@@ -268,8 +258,9 @@ def valid_datas_arround_missing_datas(grid, missing_data_indexes,
                         if valid_datas_index[data_index[0] + 1][data_index[1] + 1] == 0:
                             valid_datas_index[data_index[0] + 1][data_index[1] + 1] = 1
                             number_of_data_for_valtest_for_a_grid += 1
-                            continue
-                        elif cross_check_for_whole(grid, valid_datas_index, data_index[0] + 1, data_index[1] + 1):
+                        if cross_check_for_whole(grid, valid_datas_index,
+                                                 data_index[0] + 1,
+                                                 data_index[1] + 1):
                             number_of_data_for_valtest_for_a_grid += 1
                             continue
 
@@ -278,34 +269,38 @@ def valid_datas_arround_missing_datas(grid, missing_data_indexes,
 
 def get_datas_arround_missing_datas(grids, expected_grids_validation_test_size):
     validation_test_data_for_each_grid = {}
-    number_of_data_for_valtest_for_a_grids = {}
+    valtest_data_num_per_grid = {}
 
     for grid_name, grid in grids.items():
         if grid_name == "KALININGRAD_GUSEV_2018-04-07_2018-04-19":
-            validation_test_data_for_each_grid[grid_name] = copy.deepcopy(grids[grid_name])
+            validation_test_data_for_each_grid[grid_name] = copy.deepcopy(
+                grids[grid_name]
+            )
         else:
-            validation_test_data_for_each_grid[grid_name] = np.zeros((33, 33), dtype=np.uint)
-            number_of_data_for_valtest_for_a_grids[grid_name] = 0
+            validation_test_data_for_each_grid[grid_name] = np.zeros((33, 33),
+                                                                     dtype=np.uint)
+            valtest_data_num_per_grid[grid_name] = 0
             missing_datas_indexes, missing_size = get_missing_data_indexes(grid)
 
             print(grid_name, "has", missing_size, "missing data")
 
-            validation_test_data_for_each_grid[grid_name], number_of_data_for_valtest_for_a_grids[grid_name] = valid_datas_arround_missing_datas(
+            (validation_test_data_for_each_grid[grid_name],
+             valtest_data_num_per_grid[grid_name]) = valid_datas_arround_missing_datas(
                 grid, missing_datas_indexes,
                 expected_grids_validation_test_size[grid_name],
                 validation_test_data_for_each_grid[grid_name],
-                number_of_data_for_valtest_for_a_grids[grid_name])
+                valtest_data_num_per_grid[grid_name])
 
-            """
-            Get data from the border
-            """
-            if number_of_data_for_valtest_for_a_grids[grid_name] < expected_grids_validation_test_size[grid_name]:
-                number_of_data_for_valtest_for_a_grids[grid_name], validation_test_data_for_each_grid[grid_name] = get_border_data(
-                    grid, number_of_data_for_valtest_for_a_grids[grid_name],
+            # Get data from the border
+            if (valtest_data_num_per_grid[grid_name]
+                    < expected_grids_validation_test_size[grid_name]):
+                (valtest_data_num_per_grid[grid_name],
+                 validation_test_data_for_each_grid[grid_name]) = get_border_data(
+                    grid, valtest_data_num_per_grid[grid_name],
                     validation_test_data_for_each_grid[grid_name],
                     expected_grids_validation_test_size[grid_name])
 
-    return validation_test_data_for_each_grid, number_of_data_for_valtest_for_a_grids
+    return validation_test_data_for_each_grid, valtest_data_num_per_grid
 
 
 def split_train_val_test(validation_test_percent, data_path):
