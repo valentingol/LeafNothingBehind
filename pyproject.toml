@@ -1,3 +1,6 @@
+[tool.setuptools]
+py-modules = ["lnb"]
+
 [project]
 name = "leaf_nothing_behind"
 authors = [
