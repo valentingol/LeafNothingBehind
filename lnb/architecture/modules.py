@@ -27,8 +27,9 @@ class AutoEncoder(nn.Module):
     dropout_rate : float, optional
         Dropout rate at each block. By default 0.0 (no dropout).
     """
+
     def __init__(self, in_dim: int, out_dim: int, layer_channels: List[int],
-                 conv_per_layer: int = 1, residual: bool=False,
+                 conv_per_layer: int = 1, residual: bool = False,
                  dropout_rate: float = 0.0) -> None:
         super().__init__()
         self.in_dim = in_dim
@@ -49,10 +50,10 @@ class AutoEncoder(nn.Module):
             block = nn.Sequential()
             # First layer of each block: dim_i -> dim_i+1
             block.add_module(
-                    f"encoder_conv_{i + 1}_1",
-                    nn.Conv2d(channels[i], channels[i + 1],
-                              kernel_size=3, stride=1, padding=1)
-                    )
+                f"encoder_conv_{i + 1}_1",
+                nn.Conv2d(channels[i], channels[i + 1],
+                          kernel_size=3, stride=1, padding=1)
+            )
             block.add_module(f"encoder_relu_{i + 1}_{1}", nn.ReLU())
             for j in range(1, self.conv_per_layer):
                 # Other layers of each block: dim_i+1 -> dim_i+1
@@ -60,10 +61,10 @@ class AutoEncoder(nn.Module):
                     f"encoder_conv_{i + 1}_{j + 1}",
                     nn.Conv2d(channels[i + 1], channels[i + 1],
                               kernel_size=3, stride=1, padding=1)
-                    )
+                )
                 block.add_module(f"encoder_relu_{i + 1}_{j + 1}", nn.ReLU())
             # BatchNorm and dropout
-            block.add_module(f"encoder_bn_{i + 1}", nn.BatchNorm2d(channels[i+1]))
+            block.add_module(f"encoder_bn_{i + 1}", nn.BatchNorm2d(channels[i + 1]))
             block.add_module(f"encoder_dropout_{i + 1}", nn.Dropout(self.dropout_rate))
             encoder_layers.append(block)
         return encoder_layers
@@ -78,9 +79,9 @@ class AutoEncoder(nn.Module):
             layer = nn.Sequential()
             layer.add_module(
                 f"upsample_{i + 1}",
-                nn.ConvTranspose2d(channels[i], channels[i+1],
+                nn.ConvTranspose2d(channels[i], channels[i + 1],
                                    kernel_size=2, stride=2, padding=0)
-                )
+            )
             upsample_layers.append(layer)
 
             block = nn.Sequential()
@@ -91,14 +92,14 @@ class AutoEncoder(nn.Module):
                 block.add_module(
                     f"decoder_conv_{i + 1}_1",
                     nn.Conv2d(2 * channels[i + 1], channels[i + 1],
-                                kernel_size=3, stride=1, padding=1)
-                    )
+                              kernel_size=3, stride=1, padding=1)
+                )
             else:
                 block.add_module(
                     f"decoder_conv_{i + 1}_1",
                     nn.Conv2d(channels[i + 1], channels[i + 1],
-                                kernel_size=3, stride=1, padding=1)
-                    )
+                              kernel_size=3, stride=1, padding=1)
+                )
             block.add_module(f"decoder_relu_{i + 1}_1", nn.ReLU())
 
             for j in range(1, self.conv_per_layer):
@@ -106,11 +107,11 @@ class AutoEncoder(nn.Module):
                 block.add_module(
                     f"decoder_conv_{i + 1}_{j + 1}",
                     nn.Conv2d(channels[i + 1], channels[i + 1],
-                                kernel_size=3, stride=1, padding=1)
-                    )
+                              kernel_size=3, stride=1, padding=1)
+                )
                 block.add_module(f"decoder_relu_{i + 1}_{j + 1}", nn.ReLU())
             # BatchNorm and dropout
-            block.add_module(f"decoder_bn_{i + 1}", nn.BatchNorm2d(channels[i+1]))
+            block.add_module(f"decoder_bn_{i + 1}", nn.BatchNorm2d(channels[i + 1]))
             block.add_module(f"decoder_dropout_{i + 1}", nn.Dropout(self.dropout_rate))
             decoder_layers.append(block)
 
@@ -120,7 +121,7 @@ class AutoEncoder(nn.Module):
             "final_conv",
             nn.Conv2d(channels[-2], channels[-1],
                       kernel_size=1, stride=1, padding=0)
-            )
+        )
         decoder_layers.append(layer)
         return decoder_layers, upsample_layers
 
