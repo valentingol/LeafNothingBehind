@@ -1,8 +1,7 @@
-
 data:
   dataset_path: '../data'
-  csv_data_path: './csv/train_regular.csv'
-  csv_grid: 'square.csv'
+  csv_name: 'train_regular.csv'
+  csv_grid_name: 'train_regular_grids.csv'
   grid_augmentation: false
 dataloader:
   num_workers: 6
@@ -23,4 +22,5 @@ model:
 train:
   learning_rate: 0.001
   n_epochs: 5
-  log_interval: 10
+  log_interval: 10  # in iterations
+  save_interval: 10  # in epochs
