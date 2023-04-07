@@ -39,9 +39,9 @@ class TrainDataset(Dataset):
     ----------
     dataset_path : str
         Path to the dataset folder.
-    csv_data : str
+    csv_name : str
         Name of the csv file containing the training data.
-    csv_grid : str or None, optional
+    csv_grid_name : str or None, optional
         Name of the csv file containing the 2*2 grid data.
         Required only if grid_augmentation=True. By default None.
     grid_augmentation : bool, optional
@@ -66,8 +66,8 @@ class TrainDataset(Dataset):
         containing time information.
     """
 
-    def __init__(self, dataset_path: str, csv_data_path: str,
-                 csv_grid: Optional[str] = None,
+    def __init__(self, dataset_path: str, csv_name: str,
+                 csv_grid_name: Optional[str] = None,
                  grid_augmentation: bool = False,
                  mask_fn: Callable = mask_fn,
                  normalize_fn: Callable = normalize_fn) -> None:
@@ -82,15 +82,15 @@ class TrainDataset(Dataset):
         self.mask_fn = mask_fn
         self.normalize_fn = normalize_fn
         # Data frames
-        self.series_df = pd.read_csv(csv_data_path)
-        if csv_grid and grid_augmentation:
+        self.series_df = pd.read_csv(osp.join(dataset_path, csv_name))
+        if csv_grid_name and grid_augmentation:
             self.grid_df = pd.read_csv(osp.join(self.dataset_path,
-                                                csv_grid))
+                                                csv_grid_name))
         else:
             self.grid_df = None
             if self.grid_augmentation:
                 raise ValueError('Rotation augmentation is not possible '
-                                 'without 2*2 grid data.')
+                                 'without the 2*2 grid data.')
 
     def __len__(self) -> int:
         """Length of the dataset."""
@@ -218,8 +218,9 @@ class TrainDataset(Dataset):
 
 if __name__ == '__main__':
     # Test the dataset and explore some data
-    dataset = TrainDataset(dataset_path='../../data', csv_data='image_series.csv',
-                           csv_grid='square.csv', grid_augmentation=True)
+    dataset = TrainDataset(dataset_path='../data', csv_name='train_regular.csv',
+                           csv_grid_name='train_regular_grids.csv',
+                           grid_augmentation=True)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True,
                                              num_workers=6)
     for data, time_info in dataloader:
