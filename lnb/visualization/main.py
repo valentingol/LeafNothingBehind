@@ -2,10 +2,10 @@
 
 import os.path as osp
 
-import numpy as np
 import matplotlib.pyplot as plt
-from tifffile import tifffile as tif
+import numpy as np
 import pandas as pd
+from tifffile import tifffile as tif
 
 
 def mask(img_mask):

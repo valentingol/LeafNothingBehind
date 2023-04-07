@@ -83,7 +83,7 @@ persistent=yes
 
 # Minimum Python version to use for version dependent checks. Will default to
 # the version used to run pylint.
-py-version=3.9
+py-version=3.10
 
 # Discover python modules and packages in the file system subtree.
 recursive=yes
@@ -150,6 +150,7 @@ disable=no-member,
         not-callable,
         redefined-outer-name,
         duplicate-code,
+        wrong-import-order,  # mypy handles this
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
@@ -551,7 +552,7 @@ logging-modules=logging
 [REFACTORING]
 
 # Maximum number of nested blocks for function / method body
-max-nested-blocks=5
+max-nested-blocks=6
 
 # Complete name of functions that never returns. When checking for
 # inconsistent-return-statements if a never returning function is called then

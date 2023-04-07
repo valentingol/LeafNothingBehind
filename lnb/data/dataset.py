@@ -3,25 +3,25 @@
 import os.path as osp
 from typing import Callable, Optional, Tuple
 
-from einops import rearrange
 import numpy as np
-import torch
-from torch.utils.data import Dataset
 import pandas as pd
+import torch
+from einops import rearrange
 from tifffile import tifffile as tif
+from torch.utils.data import Dataset
 from torchvision import transforms
 
 
 def normalize_fn(data):
     """Normalize numpy data under the format [LAI, LAI mask, VV, VH]."""
     # LAI
-    data[..., 0] = np.clip(data[..., 0], 0, 10.0) / 5.0  # in [0, 2]
+    data[..., 0] /= 5.0  # in [0, 2] most of the time
     # VV and VH
     data[..., -2:] = data[..., -2:] / 30.0 + 1.0  # in [0, 1]
     return data
 
 
-def mask_fn(img_mask):
+def mask_fn(img_mask: np.ndarray) -> np.ndarray:
     """Transform an S2 mask (values between 1 and 9) to float32 binary.
 
     It uses the simple filter:
@@ -32,8 +32,8 @@ def mask_fn(img_mask):
     return np.where(img_mask > 6, 0.0, interm)
 
 
-class TrainDataset(Dataset):
-    """Training dataloader for LNB dataset.
+class LNBDataset(Dataset):
+    """Pytorch dataset for LNB data.
 
     Parameters
     ----------
@@ -51,10 +51,14 @@ class TrainDataset(Dataset):
         the length of the dataset. By default False.
     mask_fn : Callable, optional
         Function to apply on the raw mask data (under numpy format).
-        By default, a simple binary mask is used.
+        Channels should be last dimension if output rank > 3.
+        By default, a simple binary mask (of rank 2) is used.
     normalize_fn : Callable, optional
         Function to apply on the raw data (under numpy format) to normalize it.
+        Channels should be last dimension in input and output.
         A simple normalization is used by default.
+    name: str, optional
+        Name of the dataset. By default 'LNBDataset'.
 
     Data
     ----
@@ -70,7 +74,9 @@ class TrainDataset(Dataset):
                  csv_grid_name: Optional[str] = None,
                  grid_augmentation: bool = False,
                  mask_fn: Callable = mask_fn,
-                 normalize_fn: Callable = normalize_fn) -> None:
+                 normalize_fn: Callable = normalize_fn,
+                 name: str = 'LNBDataset') -> None:
+        self.name = name
         # Paths
         self.dataset_path = dataset_path
         self.s1_path = osp.join(self.dataset_path, 's1')
@@ -200,14 +206,16 @@ class TrainDataset(Dataset):
     def _name_to_time_info(self, filename: str):
         """Parse the name of the file to get the period of time in the year
         and transform it in two shifted periodic, linear and continuous values
-        between -1 and 1. The firt value describe the summer-winter axis and
+        between -1 and 1. The first value describe the summer-winter axis and
         the second the spring-autumn axis.
         """
         def periodlin_map(linear_date: float):
             """Map a date in [0, 1] to a value in [-1, 1] with a
             periodic linear pattern."""
             sign = - (int((linear_date // 0.5) % 2) * 2 - 1)
-            return 4 * sign * (linear_date - 0.5 * linear_date // 0.5) + 2 * (1 - sign) - 1
+            val = (4 * sign * (linear_date - 0.5 * linear_date // 0.5)
+                   + 2 * (1 - sign) - 1)
+            return val
 
         split = filename.split('-')
         month, day = float(split[1]), float(split[2].split('_')[0])
@@ -218,9 +226,9 @@ class TrainDataset(Dataset):
 
 if __name__ == '__main__':
     # Test the dataset and explore some data
-    dataset = TrainDataset(dataset_path='../data', csv_name='train_regular.csv',
-                           csv_grid_name='train_regular_grids.csv',
-                           grid_augmentation=True)
+    dataset = LNBDataset(dataset_path='../data', csv_name='train_regular.csv',
+                         csv_grid_name='train_regular_grids.csv',
+                         grid_augmentation=True)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True,
                                              num_workers=6)
     for data, time_info in dataloader:
