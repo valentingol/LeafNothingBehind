@@ -1,7 +1,7 @@
 """Models for the LNB task."""
 
 import abc
-from typing import Dict
+from typing import Dict, Tuple
 
 import torch
 from einops import rearrange
@@ -19,7 +19,7 @@ class Atom(nn.Module):
 
     @abc.abstractmethod
     def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor,
-                in_mask_lai: torch.Tensor, glob: torch.Tensor) -> torch.Tensor:
+                in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
         """Forward pass.
 
         Parameters
@@ -43,6 +43,8 @@ class Atom(nn.Module):
         -------
         lai: torch.Tensor
             Output LAI tensor of shape (batch, 1, 256, 256).
+        other: torch.Tensor, optional
+            Other output tensor (eventually).
         """
         raise NotImplementedError("You must implement the forward pass.")
 
@@ -52,7 +54,7 @@ class Hydrogen(Atom):
 
     # pylint: disable=unused-argument
     def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor,
-                in_mask_lai: torch.Tensor, glob: torch.Tensor) -> torch.Tensor:
+                in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
         """Forward pass.
 
         LAI at t is LAI at t-1 except where mask is 0 where it is LAI at t-2
@@ -76,7 +78,7 @@ class Hydrogen(Atom):
         for i in range(lai.shape[0]):
             if lai_1[i].sum() == 0:
                 lai[i] = lai_0[i]
-        return lai
+        return (lai, )
 
 
 class Scandium(Atom):
@@ -156,7 +158,7 @@ class Scandium(Atom):
         )
 
     def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor,
-                in_mask_lai: torch.Tensor, glob: torch.Tensor) -> torch.Tensor:
+                in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
         """Forward pass."""
         batch_size = in_lai.shape[0]
         size = in_lai.shape[-2:]
@@ -188,4 +190,4 @@ class Scandium(Atom):
                 x = torch.cat([x, in_lai], dim=1)
         lai = self.last_conv(x)  # (batch, 1, h, w)
 
-        return lai
+        return (lai, s1_embed)  # return s1 embedding for intermediate supervision

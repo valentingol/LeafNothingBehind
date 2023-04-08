@@ -29,32 +29,39 @@ def mask_fn(img_mask: np.ndarray) -> np.ndarray:
     return np.where(img_mask > 6, 0.0, interm)
 
 
-def valid_step(model: nn.Module, parsed_data: ParsedDataType) -> torch.Tensor:
-    """Perform a training step."""
-    # Forward pass and loss computation
-    with torch.no_grad():
-        pred_lai = model(**parsed_data['input_data'])
-        loss = mse_loss(pred_lai, **parsed_data['target_data'])
-    return loss
-
-
 def parse_data_device(data: torch.Tensor, glob: torch.Tensor,
                       device: torch.device) -> ParsedDataType:
     """Parse data from dataloader and put it on device."""
     # Parse data
+    # Data dims: (batch, time, channels, h, w)
+    # Channels:
+    #   0: LAI
+    #   1: LAI mask (metric)
+    #   2 -> -3: LAI mask (other channels)
+    #   -2: VV
+    #   -1: VH
     in_lai = data[:, :2, 0:1].to(device)
     lai_target = data[:, 2, 0:1].to(device)
     in_mask_lai = data[:, :2, 1:-2].to(device)
-    target_lai_mask = data[:, 2, 1:2].to(device)  # NOTE: binary
+    lai_target_mask = data[:, 2, 1:2].to(device)  # NOTE: binary
     s1_data = data[:, :, -2:].to(device)
     glob = glob.to(device)
     parsed_data = {
         'input_data': {'s1_data': s1_data, 'in_lai': in_lai, 'in_mask_lai': in_mask_lai,
                        'glob': glob},
         'target_data': {'lai_target': lai_target,
-                        'target_lai_mask': target_lai_mask}
+                        'lai_target_mask': lai_target_mask}
     }
     return parsed_data
+
+
+def valid_step(model: nn.Module, parsed_data: ParsedDataType) -> torch.Tensor:
+    """Perform a training step."""
+    # Forward pass and loss computation
+    with torch.no_grad():
+        pred_lai = model(**parsed_data['input_data'])[0]
+        loss = mse_loss(pred_lai, **parsed_data['target_data'])
+    return loss
 
 
 def val_loop(config: Dict, model: nn.Module, val_dataloaders: List[DataLoader],
