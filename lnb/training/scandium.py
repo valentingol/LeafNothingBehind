@@ -2,7 +2,7 @@
 import argparse
 import os
 from time import time
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
@@ -37,39 +37,61 @@ def parse_data_device(data: torch.Tensor, glob: torch.Tensor,
                       device: torch.device) -> ParsedDataType:
     """Parse data from dataloader and put it on device."""
     # Parse data
+    # Data dims: (batch, time, channels, h, w)
+    # Channels:
+    #   0: LAI
+    #   1: LAI mask (metric)
+    #   2 -> -3: LAI mask (other channels)
+    #   -2: VV
+    #   -1: VH
     in_lai = data[:, :2, 0:1].to(device)
     lai_target = data[:, 2, 0:1].to(device)
     in_mask_lai = data[:, :2, 1:-2].to(device)
-    target_lai_mask = data[:, 2, 1:2].to(device)  # NOTE: binary
+    lai_target_mask = data[:, 2, 1:2].to(device)  # NOTE: binary
     s1_data = data[:, :, -2:].to(device)
     glob = glob.to(device)
     parsed_data = {
         'input_data': {'s1_data': s1_data, 'in_lai': in_lai, 'in_mask_lai': in_mask_lai,
                        'glob': glob},
         'target_data': {'lai_target': lai_target,
-                        'target_lai_mask': target_lai_mask}
+                        'lai_target_mask': lai_target_mask}
     }
     return parsed_data
 
 
 def train_step(model: nn.Module, optimizer: torch.optim.Optimizer,
-               parsed_data: ParsedDataType) -> torch.Tensor:
+               parsed_data: ParsedDataType, interm_supervis: bool) -> Tuple:
     """Perform a training step."""
     # Forward pass and loss computation
     optimizer.zero_grad()
-    lai_pred = model(**parsed_data['input_data'])
+    lai_pred, lai_pred2 = model(**parsed_data['input_data'])
     loss = mse_loss(lai_pred=lai_pred, **parsed_data['target_data'])
+    if interm_supervis:
+        lai_target_interm = torch.cat([
+            parsed_data['input_data']['in_lai'],
+            parsed_data['target_data']['lai_target'].unsqueeze(1)
+        ], dim=1)
+        lai_target_mask_interm = torch.cat([
+            parsed_data['input_data']['in_mask_lai'][:, :, 0:1],
+            parsed_data['target_data']['lai_target'].unsqueeze(1)
+        ], dim=1)
+        loss2 = mse_loss(lai_pred=lai_pred2, lai_target=lai_target_interm,
+                         lai_target_mask=lai_target_mask_interm)
+        loss_total = loss + loss2
+    else:
+        loss2 = None
+        loss_total = loss
     # Backward pass and weight update
-    loss.backward()
+    loss_total.backward()
     optimizer.step()
-    return loss
+    return loss, loss2
 
 
 def valid_step(model: nn.Module, parsed_data: ParsedDataType) -> torch.Tensor:
     """Perform a training step."""
     # Forward pass and loss computation
     with torch.no_grad():
-        pred_lai = model(**parsed_data['input_data'])
+        pred_lai = model(**parsed_data['input_data'])[0]
         loss = mse_loss(pred_lai, **parsed_data['target_data'])
     return loss
 
@@ -107,10 +129,13 @@ def train_val_loop(config: Dict, model: nn.Module, train_dataloader: DataLoader,
             i_batch += 1
             # Parse data and put it on device
             parsed_data = parse_data_device(data, glob, device)
-            loss = train_step(model, optimizer, parsed_data)
+            loss, loss2 = train_step(model, optimizer, parsed_data,
+                                     train_config['interm_supervis'])
             train_losses.append(loss.item())
             # Logs
             wandb.log({'train loss': loss.item()})
+            if loss2 is not None:
+                wandb.log({'train loss2': loss2.item()})
             if i_batch % train_config['log_interval'] == 0:
                 current_t = time()
                 eta_str, eta_ep_str = get_time_log(current_t, start_t, epoch_start_t,
@@ -176,6 +201,7 @@ def run(config: Dict) -> None:
     val_loader_config = config['dataloader'].copy()
     val_data_config['grid_augmentation'] = False  # No augmentation for validation
     val_loader_config['shuffle'] = False  # No shuffle for validation
+    val_loader_config['batch_size'] = 16  # Hard-coded batch size for validation
     val_dataloaders = []
     for name in ['generalisation', 'regular', 's2_difference']:
         val_data_config['name'] = name
