@@ -25,3 +25,7 @@ pip install -e .
 - Scandium
 
 ![scandium](./assets/scandium_archi.svg)
+
+- Titanium
+
+![titanium](./assets/titanium_archi.svg)
