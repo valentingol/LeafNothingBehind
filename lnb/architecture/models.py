@@ -47,7 +47,7 @@ class Atom(nn.Module):
         raise NotImplementedError("You must implement the forward pass.")
 
 
-class Hydrogen(nn.Module):
+class Hydrogen(Atom):
     """Hydrogen model for LNB (baseline)."""
 
     # pylint: disable=unused-argument
@@ -60,21 +60,26 @@ class Hydrogen(nn.Module):
 
         in_mask_lai must be binary (0 incorrect data).
         """
-        lai_0, lai_1 = in_lai[:, 0], in_lai[:, 1]
+        lai_0, lai_1 = in_lai[:, 0:1], in_lai[:, 1:]
+
         mean_0 = lai_0.mean(dim=(2, 3, 4), keepdim=True)
         std_0 = lai_0.std(dim=(2, 3, 4), keepdim=True)
         mean_1 = lai_1.mean(dim=(2, 3, 4), keepdim=True)
         std_1 = lai_1.std(dim=(2, 3, 4), keepdim=True)
         # Normalize LAI at t-2 to N(0, 1)
-        lai_0 = (lai_0 - mean_0) / (std_0 + 1e-7)
+        new_lai_0 = (lai_0 - mean_0) / (std_0 + 1e-7)
         # Normalize LAI at t-2 like t-1
-        lai_0 = lai_0 * std_1 + mean_1
+        new_lai_0 = lai_0 * std_1 + mean_1
         # Compute LAI at t
-        lai = lai_1 * in_mask_lai[:, 1] + lai_0 * (1 - in_mask_lai[:, 1])
+        lai = lai_1 * in_mask_lai[:, 1] + new_lai_0 * (1 - in_mask_lai[:, 1])
+        # Return LAI at t-2 if LAI at t-1 is 0
+        for i in range(lai.shape[0]):
+            if lai_1[i].sum() == 0:
+                lai[i] = lai_0[i]
         return lai
 
 
-class Scandium(nn.Module):
+class Scandium(Atom):
     """Scandium model for LNB.
 
     Parameters
@@ -98,7 +103,7 @@ class Scandium(nn.Module):
     """
 
     def __init__(self, model_config: Dict) -> None:
-        super().__init__()
+        super().__init__(model_config)
         # Config
         s1_ae_config = model_config['s1_ae_config']
         mask_in_dim, mask_out_dim = model_config['mask_module_dim']

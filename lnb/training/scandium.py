@@ -173,13 +173,15 @@ def run(config: Dict) -> None:
                                   **config['dataloader'])
     # Build validation data loaders
     val_data_config = config['data'].copy()
+    val_loader_config = config['dataloader'].copy()
     val_data_config['grid_augmentation'] = False  # No augmentation for validation
+    val_loader_config['shuffle'] = False  # No shuffle for validation
     val_dataloaders = []
     for name in ['generalisation', 'regular', 's2_difference']:
         val_data_config['name'] = name
         val_data_config['csv_name'] = f'validation_{name}.csv'
         val_dataloader = DataLoader(LNBDataset(mask_fn=mask_fn, **val_data_config),
-                                    **config['dataloader'])
+                                    **val_loader_config)
         val_dataloaders.append(val_dataloader)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
