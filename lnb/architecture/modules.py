@@ -1,9 +1,10 @@
 """Layers classes and functions."""
 
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 import torch
 from torch import nn
+from transformers import SegformerModel, SegformerConfig
 
 
 class AutoEncoder(nn.Module):
@@ -146,6 +147,61 @@ class AutoEncoder(nn.Module):
             x = block(x)
         # Last layer
         x = self.decoder_layers[-1](x)
+        return x
+
+
+class SegFormerTransposed(nn.Module):
+    """SegFormer as encoder and Transposed Conv as decoder.
+
+    Parameters
+    ----------
+    segformer_config : Dict
+        SegFormer configuration.
+        num_channels : int
+            Number of channels in the input.
+        num_encoder_blocks : int
+            Number of encoder blocks.
+        strides : List[int]
+            Strides before each encoder block.
+        hidden_sizes : List[int]
+            Hidden sizes of each encoder block.
+        num_attention_heads : List[int]
+            Number of attention heads of each encoder block. The hidden
+            sizes of each block should be divisible by the number of
+            attention heads in the block.
+        hidden_dropout_prob : float
+            Dropout rate of the hidden layers.
+        attention_probs_dropout_prob : float
+            Dropout rate of the attention layers.
+    transposed_conv_block_dims : List[int]
+        Hidden sizes of each transposed convolution block in the decoder.
+    """
+
+    def __init__(self, segformer_config: Dict,
+                 transposed_conv_block_dims: List[int]):
+        super().__init__()
+        # SegFormer (encoder)
+        segformer_hf_config = SegformerConfig(**segformer_config)
+        self.segformer = SegformerModel(segformer_hf_config)
+        # Transposed Convolutional Block (decoder)
+        first_dim = segformer_config['hidden_sizes'][-1]
+        conv_block_dims = [first_dim] + transposed_conv_block_dims
+        self.conv_block = nn.Sequential()
+        for i in range(len(conv_block_dims) - 1):
+            self.conv_block.add_module(
+                f"trans_conv_{i+1}",
+                nn.ConvTranspose2d(conv_block_dims[i], conv_block_dims[i + 1],
+                                   kernel_size=4, stride=2, padding=1)
+                )
+            self.conv_block.add_module(
+                f"trans_conv_{i+1}_relu",
+                nn.ReLU()
+                )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass."""
+        x = self.segformer(x).last_hidden_state
+        x = self.conv_block(x)
         return x
 
 
