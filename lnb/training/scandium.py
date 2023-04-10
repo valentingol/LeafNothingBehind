@@ -210,7 +210,8 @@ def run(config: Dict) -> None:
                                     **val_loader_config)
         val_dataloaders.append(val_dataloader)
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda' if torch.cuda.is_available()
+                          else 'mps' if torch.backends.mps.is_built() else 'cpu')
     # Run training
     train_val_loop(config=config, model=model, train_dataloader=train_dataloader,
                    val_dataloaders=val_dataloaders, device=device)
