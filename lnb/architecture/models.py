@@ -384,3 +384,34 @@ class Vanadium(Atom):
         lai = self.last_conv(x)  # (batch, 1, h, w)
 
         return (lai, s1_embed)  # return s1 embedding for intermediate supervision
+
+
+class Lithium(Atom):
+    def __init__(self, model_config: Dict) -> None:
+        super().__init__(model_config)
+        ae_config = model_config['ae_config']
+        self.ae = AutoEncoder(**ae_config)
+        self.mask_conv = nn.Conv2d(1, 1, kernel_size=5, stride=1, padding=2)
+
+    
+    def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor, in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
+        s1_concat = s1_data.view(-1, 6, s1_data.shape[-2], s1_data.shape[-1])
+
+        return self.ae(s1_concat), None
+    
+
+class Berylium(Atom):
+    def __init__(self, model_config: Dict)-> None:
+        super().__init__(model_config)
+        ae_config = model_config['ae_config']
+        self.ae = AutoEncoder(**ae_config)
+        self.mask_conv = nn.Conv2d(1, model_config["mask_embedding_channels"], kernel_size=1, stride=1)
+
+    def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor, in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
+        s1_concat = s1_data.view(-1, 6, s1_data.shape[-2], s1_data.shape[-1])
+        mask_t2 = self.mask_conv(in_mask_lai[:, 0, :, :, :])
+        mask_t1 = self.mask_conv(in_mask_lai[:, 1, :, :, :])
+
+        concat_all = torch.cat([s1_concat, mask_t1, mask_t2], dim=1)
+
+        return self.ae(concat_all), None
