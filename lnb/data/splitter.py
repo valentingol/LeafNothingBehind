@@ -149,6 +149,7 @@ def cross_check_for_whole(grid, valid_datas_index, data_index_0, data_index_1):
             if valid_datas_index[data_index_0][data_index_1 - 1] == 0:
                 valid_datas_index[data_index_0][data_index_1 - 1] = 1
                 return True
+    return False
 
 
 def get_border_data(grid, number_of_data_for_valtest_for_a_grid,
@@ -268,6 +269,7 @@ def valid_datas_arround_missing_datas(grid, missing_data_indexes,
 
 
 def get_datas_arround_missing_datas(grids, expected_grids_validation_test_size):
+    """Get sample data around missing data."""
     validation_test_data_for_each_grid = {}
     valtest_data_num_per_grid = {}
 
@@ -310,27 +312,33 @@ def split_train_val_test(validation_test_percent, data_path):
 
     grids, grids_size = grid_exploration(series)
 
-    expected_grids_validation_test_size, potential_total_val_test_data_size = val_test_proportion_for_each_grid(
-        validation_test_percent, grids_size)
+    (expected_grids_validation_test_size,
+     potential_total_val_test_data_size) = val_test_proportion_for_each_grid(
+        validation_test_percent, grids_size
+    )
+    (real_grids_validation_test,
+     number_of_data_for_valtest_for_each_grids) = get_datas_arround_missing_datas(
+        grids, expected_grids_validation_test_size
+    )
 
-    real_grids_validation_test, number_of_data_for_valtest_for_each_grids = get_datas_arround_missing_datas(
-        grids, expected_grids_validation_test_size)
-
-    number_of_data_for_valtest_for_each_grids["KALININGRAD_GUSEV_2018-04-07_2018-04-19"] = grids_size["KALININGRAD_GUSEV_2018-04-07_2018-04-19"]
+    number_of_data_for_valtest_for_each_grids[
+        "KALININGRAD_GUSEV_2018-04-07_2018-04-19"
+    ] = grids_size["KALININGRAD_GUSEV_2018-04-07_2018-04-19"]
 
     for grids_name, size in grids_size.items():
         print("===")
         print(grids_name)
         print("size =", size)
-        print("expected test_val_size =", expected_grids_validation_test_size[grids_name])
+        print("expected test_val_size =",
+              expected_grids_validation_test_size[grids_name])
         print("real_grids_validation_test_size =",
               number_of_data_for_valtest_for_each_grids[grids_name])
         print("===")
 
     print("========")
-    print(
-        "Based on each grid size expected total_val_test_data_size (KALININGRAD_GUSEV_2018-04-07_2018-04-19 is fully taken) =",
-        potential_total_val_test_data_size)
+    print("Based on each grid size expected total_val_test_data_size "
+          "(KALININGRAD_GUSEV_2018-04-07_2018-04-19 is fully taken) =",
+          potential_total_val_test_data_size)
 
     real_test_val_dataset_total_size = 0
     for _, dataset_size in number_of_data_for_valtest_for_each_grids.items():
@@ -344,7 +352,8 @@ def split_train_val_test(validation_test_percent, data_path):
 
     train_dataset.pop("KALININGRAD_GUSEV_2018-04-07_2018-04-19")
 
-    return real_grids_validation_test, real_test_val_dataset_total_size, grids_size, train_dataset
+    return (real_grids_validation_test, real_test_val_dataset_total_size,
+            grids_size, train_dataset)
 
 
 def average_absolute_differences(line, data_path):
@@ -373,7 +382,8 @@ def get_vh_vv_differences(differences):
         in_dataset = 0
 
         """
-        Segment correpond to the limit value beyond witch the difference is considered HIGH, first fort VV and second for VH
+        Segment correspond to the limit value beyond witch the difference
+        is considered HIGH, first fort VV and second for VH
         """
         if o == 0:
             segment = 1.9
@@ -404,12 +414,16 @@ def get_vh_vv_differences(differences):
 
         segment_end = np.round(conca_array.max(), decimals=2)
 
-        proportion_in = np.round(100 / (no_in_dataset + in_dataset) * in_dataset, decimals=2)
+        proportion_in = np.round(100 / (no_in_dataset + in_dataset)
+                                 * in_dataset, decimals=2)
 
-        proportion_no_in = np.round(100 / (no_in_dataset + in_dataset) * no_in_dataset, decimals=2)
+        proportion_no_in = np.round(100 / (no_in_dataset + in_dataset)
+                                    * no_in_dataset, decimals=2)
 
-        print(f"{s1_type} difference entre 0 et {segment} = {no_in_dataset} => {proportion_no_in} %")
-        print(f"{s1_type} difference entre {segment} et {segment_end} = {in_dataset} => {proportion_in} %")
+        print(f"{s1_type} difference entre 0 et {segment} = "
+              f"{no_in_dataset} => {proportion_no_in} %")
+        print(f"{s1_type} difference entre {segment} et "
+              f"{segment_end} = {in_dataset} => {proportion_in} %")
 
         # goss_show(conca_array, f"{s1_type}_differences entre t et t-1")
 
@@ -437,8 +451,10 @@ def get_s1_differences_dataset(dataset_to_check, data_path):
                 if head not in vv_differences or head not in vv_differences:
                     vv_differences[head] = np.zeros((33, 33))
                     vh_differences[head] = np.zeros((33, 33))
-                vv_differences[head][row, col], vh_differences[head][row,
-                                                                     col] = average_absolute_differences(line, data_path)
+                (vv_differences[head][row, col],
+                 vh_differences[head][row, col]) = average_absolute_differences(
+                     line, data_path
+                )
 
     s1_difference_dataset = get_vh_vv_differences([vv_differences, vh_differences])
 
@@ -467,10 +483,13 @@ def get_dataset_size(grids):
     return size
 
 
-def get_datasets_for_metrics(val_test_dataset, val_test_dataset_total_size, grids_size, data_path):
+def get_datasets_for_metrics(val_test_dataset, val_test_dataset_total_size,
+                             grids_size, data_path):
 
     # Generalisation dataset for the generalisation metrics
-    kalingrad_copy = copy.copy(val_test_dataset["KALININGRAD_GUSEV_2018-04-07_2018-04-19"])
+    kalingrad_copy = copy.copy(
+        val_test_dataset["KALININGRAD_GUSEV_2018-04-07_2018-04-19"]
+    )
     generalisation_dataset = {
         "KALININGRAD_GUSEV_2018-04-07_2018-04-19": kalingrad_copy}
 
@@ -499,30 +518,39 @@ def check_no_duplication(train_data_set,
                     if key in val_generalisation_dataset:
                         if val_generalisation_dataset[key][i, j] == 1:
                             raise ValueError(
-                                f"You have commun data between your train and val_generalisation_dataset at {key} index {i}{j}")
+                                "You have commun data between your train and "
+                                f"val_generalisation_dataset at {key} index {i}{j}")
                     if key in test_generalisation_dataset:
                         if test_generalisation_dataset[key][i, j] == 1:
                             raise ValueError(
-                                f"You have commun data between your train and test_generalisation_dataset dataset at {key} index {i}{j}")
+                                "You have commun data between your train and "
+                                "test_generalisation_dataset dataset "
+                                f"at {key} index {i}{j}")
                     if key in val_s1_difference_dataset:
                         if val_s1_difference_dataset[key][i, j] == 1:
                             raise ValueError(
-                                f"You have commun data between your train and val_s1_difference_dataset dataset at {key} index {i}{j}")
+                                "You have commun data between your train and "
+                                "val_s1_difference_dataset dataset "
+                                f"at {key} index {i}{j}")
                     if key in test_s1_difference_dataset:
                         if test_s1_difference_dataset[key][i, j] == 1:
                             raise ValueError(
-                                f"You have commun data between your train and test_s1_difference_dataset at {key} index {i}{j}")
+                                f"You have commun data between your train and "
+                                f"test_s1_difference_dataset at {key} index {i}{j}")
                     if key in val_regular_dataset:
                         if val_regular_dataset[key][i, j] == 1:
                             raise ValueError(
-                                f"You have commun data between your train and val_regular_dataset dataset at {key} index {i}{j}")
+                                f"You have commun data between your train and "
+                                f"val_regular_dataset dataset at {key} index {i}{j}")
                     if key in test_regular_dataset:
                         if test_regular_dataset[key][i, j] == 1:
                             raise ValueError(
-                                f"You have commun data between your train and test_regular_dataset dataset at {key} index {i}{j}")
+                                f"You have commun data between your train and "
+                                f"test_regular_dataset dataset at {key} index {i}{j}")
 
     print("========")
-    print("You do not have duplication between your train dataset and your test/validation datasets")
+    print("You do not have duplication between your train dataset "
+          "and your test/validation datasets")
     print("========")
 
 
@@ -533,7 +561,8 @@ def check_no_duplication_val_test(dataset_1, dataset_2):
 
                 if dataset_1[key][i, j] == 1 and dataset_2[key][i, j] == 1:
                     raise ValueError(
-                        "You have commun data between your validation and testing dataset")
+                        "You have commun data between your "
+                        "validation and testing dataset")
 
 
 def final_checkers(train_data_set,
@@ -561,8 +590,10 @@ def final_checkers(train_data_set,
         val_regular_dataset,
         test_regular_dataset)
 
-    check_no_duplication_val_test(val_generalisation_dataset, test_generalisation_dataset)
-    check_no_duplication_val_test(val_s1_difference_dataset, test_s1_difference_dataset)
+    check_no_duplication_val_test(val_generalisation_dataset,
+                                  test_generalisation_dataset)
+    check_no_duplication_val_test(val_s1_difference_dataset,
+                                  test_s1_difference_dataset)
     check_no_duplication_val_test(val_regular_dataset, test_regular_dataset)
 
     print("You dont have duplicate date between your validations and tests datasets")
@@ -609,17 +640,29 @@ def split_val_test(generalisation_dataset, s1_difference_dataset, regular_datase
         regular_dataset)
 
     print("========")
-    print("test_generalisation_dataset size", get_dataset_size(test_generalisation_dataset))
-    print("val_generalisation_dataset size", get_dataset_size(val_generalisation_dataset))
-
-    print("test_s1_difference_dataset size", get_dataset_size(test_s1_difference_dataset))
-    print("val_s1_difference_dataset size", get_dataset_size(val_s1_difference_dataset))
-
-    print("test_regular_dataset size", get_dataset_size(test_regular_dataset))
-    print("val_regular_dataset size", get_dataset_size(val_regular_dataset))
+    print("test_generalisation_dataset size", get_dataset_size(
+        test_generalisation_dataset
+    ))
+    print("val_generalisation_dataset size", get_dataset_size(
+        val_generalisation_dataset
+    ))
+    print("test_s1_difference_dataset size", get_dataset_size(
+        test_s1_difference_dataset
+    ))
+    print("val_s1_difference_dataset size", get_dataset_size(
+        val_s1_difference_dataset
+    ))
+    print("test_regular_dataset size", get_dataset_size(
+        test_regular_dataset
+    ))
+    print("val_regular_dataset size", get_dataset_size(
+        val_regular_dataset
+    ))
     print("========")
 
-    return val_generalisation_dataset, test_generalisation_dataset, val_s1_difference_dataset, test_s1_difference_dataset, val_regular_dataset, test_regular_dataset
+    return (val_generalisation_dataset, test_generalisation_dataset,
+            val_s1_difference_dataset, test_s1_difference_dataset,
+            val_regular_dataset, test_regular_dataset)
 
 
 def clean_empty_key(array):
@@ -661,7 +704,8 @@ def create_csv(datasets):
                     for j in range(33):
                         if datasets[dataset_name][key][i, j] == 1:
                             writer.writerow(
-                                [f"{key}-0-0-{i}-{j}.tiff", f"{key}-1-0-{i}-{j}.tiff", f"{key}-2-0-{i}-{j}.tiff"])
+                                [f"{key}-0-0-{i}-{j}.tiff", f"{key}-1-0-{i}-{j}.tiff",
+                                 f"{key}-2-0-{i}-{j}.tiff"])
 
 
 def size_check(file):
@@ -741,11 +785,15 @@ if __name__ == '__main__':
     VALIDATION_TEST_PERCENT = 20  # Size of the VALIDATION and TEST dataset in Percent
     GRID_SHOW = True
 
-    val_test_dataset, val_test_dataset_total_size, grids_size, train_data_set = split_train_val_test(
-        VALIDATION_TEST_PERCENT, DATA_PATH)
+    (val_test_dataset, val_test_dataset_total_size,
+     grids_size, train_data_set) = split_train_val_test(
+        VALIDATION_TEST_PERCENT, DATA_PATH
+    )
 
-    generalisation_dataset, s1_difference_dataset, regular_dataset = get_datasets_for_metrics(
-        val_test_dataset, val_test_dataset_total_size, grids_size, DATA_PATH)
+    (generalisation_dataset, s1_difference_dataset,
+     regular_dataset) = get_datasets_for_metrics(
+         val_test_dataset, val_test_dataset_total_size, grids_size, DATA_PATH
+    )
 
     print("========")
     print("Train dataset size =", get_dataset_size(train_data_set))
@@ -754,8 +802,11 @@ if __name__ == '__main__':
     print("Regular dataset size = ", get_dataset_size(regular_dataset))
     print("========")
 
-    val_generalisation_dataset, test_generalisation_dataset, val_s1_difference_dataset, test_s1_difference_dataset, val_regular_dataset, test_regular_dataset = split_val_test(
-        generalisation_dataset, s1_difference_dataset, regular_dataset)
+    (val_generalisation_dataset, test_generalisation_dataset, val_s1_difference_dataset,
+     test_s1_difference_dataset, val_regular_dataset,
+     test_regular_dataset) = split_val_test(
+        generalisation_dataset, s1_difference_dataset, regular_dataset
+    )
 
     clean_empty_key([val_generalisation_dataset,
                      test_generalisation_dataset,
