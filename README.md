@@ -29,3 +29,7 @@ pip install -e .
 - Titanium
 
 ![titanium](./assets/titanium_archi.svg)
+
+- Vanadium
+
+![vanadium](./assets/vanadium_archi.svg)
