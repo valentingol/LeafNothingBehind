@@ -192,11 +192,11 @@ class SegFormerTransposed(nn.Module):
                 f"trans_conv_{i+1}",
                 nn.ConvTranspose2d(conv_block_dims[i], conv_block_dims[i + 1],
                                    kernel_size=4, stride=2, padding=1)
-                )
+            )
             self.conv_block.add_module(
                 f"trans_conv_{i+1}_relu",
                 nn.ReLU()
-                )
+            )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass."""

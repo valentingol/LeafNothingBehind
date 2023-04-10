@@ -13,3 +13,6 @@
 wandb
 # conda env
 environment.yml
+
+# Aurelien
+start_exp.sh
