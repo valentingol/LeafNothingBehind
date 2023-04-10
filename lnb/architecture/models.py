@@ -130,8 +130,6 @@ class Scandium(Atom):
                     nn.ReLU()
                 )
         # Convolutional block
-        # Modified for the experience
-        mask_out_dim = 6
         first_dim = (mask_out_dim * 2 + glob_module_dims[-1]
                      + s1_ae_config['out_dim'] * 3 + 2)
         conv_block_dims = [first_dim] + conv_block_dims
@@ -170,8 +168,8 @@ class Scandium(Atom):
                              batch=batch_size)
         # Time steps information embedding
         in_mask_lai = rearrange(in_mask_lai, "batch t c h w -> (batch t) c h w")
-        # mask_lai_embed = self.conv_lai_mask(in_mask_lai)  # (batch*t, c, h, w)
-        mask_lai_embed = rearrange(in_mask_lai, "(batch t) c h w -> batch (t c) h w",
+        mask_lai_embed = self.conv_lai_mask(in_mask_lai)  # (batch*t, c, h, w)
+        mask_lai_embed = rearrange(mask_lai_embed, "(batch t) c h w -> batch (t c) h w",
                                    batch=batch_size)
         s1_input = rearrange(s1_embed[:, :2], "batch t c h w -> batch (t c) h w")
         in_lai = torch.squeeze(in_lai, dim=2)  # (batch, c, h, w)
@@ -180,7 +178,7 @@ class Scandium(Atom):
         # Global features embedding
         glob = rearrange(glob, "batch c -> batch c 1 1")
         glob = glob.repeat(1, 1, size[0], size[1])  # (batch, c, h, w)
-        glob = self.conv_glob(glob)  # (batch, c, h, w)
+        # glob = self.conv_glob(glob)  # (batch, c, h, w)
 
         # Final convolutional block
         x = torch.cat([t_input, glob, s1_embed[:, 2]], dim=1)  # (batch, c, h, w)

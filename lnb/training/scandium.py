@@ -229,7 +229,7 @@ def main() -> None:
     # New id (for model name)
     run_id = np.random.randint(1000000)
     config['run_id'] = run_id
-    wandb.init(project='lnb', entity='leaf_nothing_behind', group='scandium_abaltion', notes="Without the Mask embedding conv",
+    wandb.init(project='lnb', entity='leaf_nothing_behind', group='scandium_abaltion', notes="Without the global features embedding",
                config=config)
     run(dict(wandb.config))
     wandb.finish()
