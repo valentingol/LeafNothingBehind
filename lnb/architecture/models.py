@@ -123,12 +123,12 @@ class Scandium(Atom):
                 f"glob_conv_{i+1}",
                 nn.Conv2d(glob_module_dims[i], glob_module_dims[i + 1],
                           kernel_size=1, stride=1, padding=0)
-                )
+            )
             if i < len(glob_module_dims) - 2:
                 self.conv_glob.add_module(
                     f"glob_conv_{i+1}_relu",
                     nn.ReLU()
-                    )
+                )
         # Convolutional block
         first_dim = (mask_out_dim * 2 + glob_module_dims[-1]
                      + s1_ae_config['out_dim'] * 3 + 2)
@@ -143,11 +143,11 @@ class Scandium(Atom):
                 f"conv_{i+1}",
                 nn.Conv2d(in_channels, conv_block_dims[i + 1],
                           kernel_size=3, stride=1, padding=1)
-                )
+            )
             self.conv_block.add_module(
                 f"conv_{i+1}_relu",
                 nn.ReLU()
-                )
+            )
         # Last convolutional layer
         self.last_conv = nn.Sequential()
         self.last_conv.add_module(
@@ -163,8 +163,8 @@ class Scandium(Atom):
         size = in_lai.shape[-2:]
         # S1 data embedding
         s1_data = rearrange(s1_data, "batch t c h w -> (batch t) c h w")
-        s1_embed = self.s1_ae(s1_data)
-        s1_embed = rearrange(s1_embed, "(batch t) c h w -> batch t c h w",
+        # s1_embed = self.s1_ae(s1_data)
+        s1_embed = rearrange(s1_data, "(batch t) c h w -> batch t c h w",
                              batch=batch_size)
         # Time steps information embedding
         in_mask_lai = rearrange(in_mask_lai, "batch t c h w -> (batch t) c h w")
@@ -236,12 +236,12 @@ class Titanium(Atom):
                 f"glob_conv_{i+1}",
                 nn.Conv2d(glob_module_dims[i], glob_module_dims[i + 1],
                           kernel_size=1, stride=1, padding=0)
-                )
+            )
             if i < len(glob_module_dims) - 2:
                 self.conv_glob.add_module(
                     f"glob_conv_{i+1}_relu",
                     nn.ReLU()
-                    )
+                )
         # Ending AE
         first_dim = (mask_out_dim * 2 + glob_module_dims[-1]
                      + s1_ae_config['out_dim'] * 3 + 2)
@@ -331,12 +331,12 @@ class Vanadium(Atom):
                 f"glob_conv_{i+1}",
                 nn.Conv2d(glob_module_dims[i], glob_module_dims[i + 1],
                           kernel_size=1, stride=1, padding=0)
-                )
+            )
             if i < len(glob_module_dims) - 2:
                 self.conv_glob.add_module(
                     f"glob_conv_{i+1}_relu",
                     nn.ReLU()
-                    )
+                )
         # SegFormer + Transposed convolutional block
         first_dim = (mask_out_dim * 2 + glob_module_dims[-1]
                      + s1_ae_config['out_dim'] * 3 + 2)

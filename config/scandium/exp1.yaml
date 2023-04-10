@@ -5,13 +5,13 @@ data:
   grid_augmentation: false
 dataloader:
   num_workers: 6
-  batch_size: 16
+  batch_size: 32
   shuffle: true
   prefetch_factor: 2
 model:
   s1_ae_config:  # U-Net-like architecture
     in_dim: 2  # always 2 (if input={VV, VH})
-    out_dim: 2
+    out_dim: 1
     layer_channels: [16, 32, 64]
     conv_per_layer: 1
     residual: false
