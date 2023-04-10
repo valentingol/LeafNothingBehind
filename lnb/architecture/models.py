@@ -7,7 +7,7 @@ import torch
 from einops import rearrange
 from torch import nn
 
-from lnb.architecture.modules import AutoEncoder
+from lnb.architecture.modules import AutoEncoder, SegFormerTransposed
 
 
 class Atom(nn.Module):
@@ -276,5 +276,111 @@ class Titanium(Atom):
         # Final convolutional block
         x = torch.cat([t_input, glob, s1_embed[:, 2]], dim=1)  # (batch, c, h, w)
         lai = self.end_ae(x)  # (batch, 1, h, w)
+
+        return (lai, s1_embed)  # return s1 embedding for intermediate supervision
+
+
+class Vanadium(Atom):
+    """Vanadium model for LNB.
+
+    Parameters
+    ----------
+    module_config: Dict
+        Model configuration.
+            s1_ae_config: Dict
+                Configuration for the S1 auto-encoder.
+                    in_dim: int
+                    out_dim : int
+                    layer_channels : List[int]
+                    conv_per_layer : int, optional
+                    residual : bool, optional
+                    dropout_rate : float, optional
+            mask_module_dim : Tuple[int, int]
+                Input and output dimensions of the LAI mask module.
+            glob_module_dims : List[int]
+                Channels of the global features module.
+            segformer_config : Dict
+                Configuration for the SegFormer.
+                    num_encoder_blocks : int
+                    strides : List[int]
+                    hidden_sizes : List[int]
+                    num_attention_heads : List[int]
+                    hidden_dropout_prob : float
+                    attention_probs_dropout_prob : float
+            transposed_conv_block_dims : List[int]
+                Channels of the transposed convolutional block.
+    """
+
+    def __init__(self, model_config: Dict) -> None:
+        super().__init__(model_config)
+        # Config
+        s1_ae_config = model_config['s1_ae_config']
+        mask_in_dim, mask_out_dim = model_config['mask_module_dim']
+        glob_module_dims = model_config['glob_module_dims']
+        segformer_config = model_config['segformer_config']
+        conv_block_dims = model_config['transposed_conv_block_dims']
+        # AE for Sentinel-1 data
+        self.s1_ae = AutoEncoder(**s1_ae_config)
+        # Convolutional layers for LAI mask
+        self.conv_lai_mask = nn.Conv2d(mask_in_dim, mask_out_dim,
+                                       kernel_size=5, stride=1, padding=2)
+        # 1*1 convolutional layers for global features
+        self.conv_glob = nn.Sequential()
+        for i in range(len(glob_module_dims) - 1):
+            self.conv_glob.add_module(
+                f"glob_conv_{i+1}",
+                nn.Conv2d(glob_module_dims[i], glob_module_dims[i + 1],
+                          kernel_size=1, stride=1, padding=0)
+                )
+            if i < len(glob_module_dims) - 2:
+                self.conv_glob.add_module(
+                    f"glob_conv_{i+1}_relu",
+                    nn.ReLU()
+                    )
+        # SegFormer + Transposed convolutional block
+        first_dim = (mask_out_dim * 2 + glob_module_dims[-1]
+                     + s1_ae_config['out_dim'] * 3 + 2)
+        segformer_config['num_channels'] = first_dim
+        self.segformer = SegFormerTransposed(segformer_config=segformer_config,
+                                             transposed_conv_block_dims=conv_block_dims)
+        # Last convolutional layer
+        self.last_conv = nn.Sequential()
+        self.last_conv.add_module(
+            "conv_last",
+            nn.Conv2d(conv_block_dims[-1] + 2, 1,
+                      kernel_size=1, stride=1, padding=0)
+        )
+
+    def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor,
+                in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
+        """Forward pass."""
+        batch_size = in_lai.shape[0]
+        size = in_lai.shape[-2:]
+        # S1 data embedding
+        s1_data = rearrange(s1_data, "batch t c h w -> (batch t) c h w")
+        s1_embed = self.s1_ae(s1_data)
+        s1_embed = rearrange(s1_embed, "(batch t) c h w -> batch t c h w",
+                             batch=batch_size)
+        # Time steps information embedding
+        in_mask_lai = rearrange(in_mask_lai, "batch t c h w -> (batch t) c h w")
+        mask_lai_embed = self.conv_lai_mask(in_mask_lai)  # (batch*t, c, h, w)
+        mask_lai_embed = rearrange(mask_lai_embed, "(batch t) c h w -> batch (t c) h w",
+                                   batch=batch_size)
+        s1_input = rearrange(s1_embed[:, :2], "batch t c h w -> batch (t c) h w")
+        in_lai = torch.squeeze(in_lai, dim=2)  # (batch, c, h, w)
+        t_input = torch.cat([in_lai, mask_lai_embed, s1_input],
+                            dim=1)  # (batch, c, h, w)
+        # Global features embedding
+        glob = rearrange(glob, "batch c -> batch c 1 1")
+        glob = glob.repeat(1, 1, size[0], size[1])  # (batch, c, h, w)
+        glob = self.conv_glob(glob)  # (batch, c, h, w)
+
+        # Final convolutional block
+        x = torch.cat([t_input, glob, s1_embed[:, 2]], dim=1)  # (batch, c, h, w)
+        x = self.segformer(x)  # (batch, c, h, w)
+
+        # Final convolutional block
+        x = torch.cat([x, in_lai], dim=1)  # (batch, c+2, h, w)
+        lai = self.last_conv(x)  # (batch, 1, h, w)
 
         return (lai, s1_embed)  # return s1 embedding for intermediate supervision
