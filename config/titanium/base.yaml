@@ -19,8 +19,8 @@ model:
   mask_module_dim: [6, 2]  # include input dim
   glob_module_dims: [2, 8, 2]  # include input dim
   end_ae_config:
-    layer_channels: [16, 32, 64]
-    conv_per_layer: 1
+    layer_channels: [32, 64, 128, 256]
+    conv_per_layer: 2
     residual: true
     dropout_rate: 0.0
 train:
@@ -29,5 +29,5 @@ train:
   learning_rate_decay: 0.2  # lr *= decay at each decay step
   n_epochs: 30
   log_interval: 20  # in iterations
-  save_interval: 5  # in epochs
+  save_interval: 10  # in epochs
   interm_supervis: false  # intermediate supervision for AE
