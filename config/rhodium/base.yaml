@@ -13,10 +13,14 @@ model:
     out_dim: 1
     layer_channels: [16, 32, 64]
     conv_per_layer: 1
-    residual: false
     dropout_rate: 0.0
   s2_encod_config:  # U-Net-like architecture
-    in_dim: 2  # always 2 (if input={VV, VH})
+    in_dim: 2  # always 2 (S2, mask)
+    out_dim: 1
+    layer_channels: [16, 32, 64]
+    conv_per_layer: 1
+    dropout_rate: 0.0
+  decoder_config: # U-Net_like architecture
     out_dim: 1
     layer_channels: [16, 32, 64]
     conv_per_layer: 1
