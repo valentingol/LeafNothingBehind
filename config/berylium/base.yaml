@@ -1,7 +1,6 @@
 data:
   dataset_path: '../data'
   csv_name: 'train_regular.csv'
-  csv_grid_name: 'train_regular_grids.csv'
   grid_augmentation: false
 dataloader:
   num_workers: 6
