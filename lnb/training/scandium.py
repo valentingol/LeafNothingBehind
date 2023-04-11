@@ -194,6 +194,10 @@ def train_val_loop(config: Dict, model: nn.Module, train_dataloader: DataLoader,
 def run(config: Dict) -> None:
     """Run training."""
     model = Scandium(config['model'])
+    # Print number of parameters
+    n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f'Model has {n_params} parameters')
+
     train_dataloader = DataLoader(LNBDataset(mask_fn=mask_fn, **config['data']),
                                   **config['dataloader'])
     # Build validation data loaders
