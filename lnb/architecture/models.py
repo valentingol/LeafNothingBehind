@@ -57,6 +57,12 @@ class Hydrogen(Atom):
                 in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
         """Forward pass."""
         lai = (in_lai[:, 0] + in_lai[:, 1]) / 2.0
+        # Ignore null LAI
+        for i, sample in enumerate(in_lai):
+            if sample[0].min() == sample[0].max():
+                lai[i] = sample[1]
+            if sample[1].min() == sample[1].max():
+                lai[i] = sample[0]
         return (lai, None)
 
     # pylint: disable=unused-argument
