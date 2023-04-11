@@ -78,6 +78,8 @@ def val_loop(config: Dict, model: nn.Module, val_dataloaders: List[DataLoader],
     n_epochs = train_config['n_epochs']
 
     model = model.to(device)
+    # Steps for wandb log
+    steps = np.linspace(0, 11239, n_epochs)
     for epoch in range(n_epochs):
         # Validation
         model = model.eval()
@@ -99,7 +101,8 @@ def val_loop(config: Dict, model: nn.Module, val_dataloaders: List[DataLoader],
 
             # Epoch validation logs
             mean_valid_loss = sum(valid_losses) / len(valid_losses)
-            wandb.log({f'mean valid loss {val_name}': mean_valid_loss})
+            wandb.log({f'mean valid loss {val_name}': mean_valid_loss},
+                      step=int(steps[epoch]))
             print(f'\nEpoch {epoch + 1}/{n_epochs}, mean valid loss '
                   f'{val_name} {mean_valid_loss:.4f}')
 

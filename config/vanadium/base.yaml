@@ -1,7 +1,6 @@
 data:
   dataset_path: '../data'
   csv_name: 'train_regular.csv'
-  csv_grid_name: 'train_regular_grids.csv'
   grid_augmentation: false
 dataloader:
   num_workers: 6
@@ -19,10 +18,10 @@ model:
   mask_module_dim: [6, 2]  # include input dim
   glob_module_dims: [2, 8, 2]  # include input dim
   segformer_config:
-    num_encoder_blocks: 4
-    strides: [2, 2, 2, 1]
-    hidden_sizes: [32, 64, 128, 128]
-    num_attention_heads: [1, 2, 4, 4]
+    num_encoder_blocks: 3
+    strides: [2, 2, 2]
+    hidden_sizes: [32, 64, 128]
+    num_attention_heads: [1, 2, 4]
     hidden_dropout_prob: 0.0
     attention_probs_dropout_prob: 0.0
   transposed_conv_block_dims: [64, 32, 16]
