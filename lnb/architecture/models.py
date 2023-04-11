@@ -55,6 +55,13 @@ class Hydrogen(Atom):
     # pylint: disable=unused-argument
     def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor,
                 in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
+        """Forward pass."""
+        lai = (in_lai[:, 0] + in_lai[:, 1]) / 2.0
+        return (lai, None)
+
+    # pylint: disable=unused-argument
+    def old_forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor,
+                    in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
         """Forward pass.
 
         LAI at t is LAI at t-1 except where mask is 0 where it is LAI at t-2
@@ -78,7 +85,7 @@ class Hydrogen(Atom):
         for i in range(lai.shape[0]):
             if lai_1[i].sum() == 0:
                 lai[i] = lai_0[i]
-        return (lai, )
+        return (lai, None)
 
 
 class Scandium(Atom):
@@ -387,27 +394,63 @@ class Vanadium(Atom):
 
 
 class Lithium(Atom):
+    """Lithium model for LNB.
+
+    Parameters
+    ----------
+    module_config: Dict
+        Model configuration.
+            ae_config: Dict
+                Configuration for the auto-encoder.
+                    in_dim: int
+                    out_dim : int
+                    layer_channels : List[int]
+                    conv_per_layer : int, optional
+                    residual : bool, optional
+                    dropout_rate : float, optional
+    """
+
+    def __init__(self, model_config: Dict) -> None:
+        super().__init__(model_config)
+        ae_config = model_config['ae_config']
+        self.ae_model = AutoEncoder(**ae_config)
+        self.mask_conv = nn.Conv2d(1, 1, kernel_size=5, stride=1, padding=2)
+
+    # pylint: disable=unused-argument
+    def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor,
+                in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
+        s1_concat = s1_data.view(-1, 6, s1_data.shape[-2], s1_data.shape[-1])
+        return self.ae_model(s1_concat), None
+
+
+class Berylium(Atom):
+    """Berylium model for LNB.
+
+    Parameters
+    ----------
+    module_config: Dict
+        Model configuration.
+            ae_config: Dict
+                Configuration for the auto-encoder.
+                    in_dim: int
+                    out_dim : int
+                    layer_channels : List[int]
+                    conv_per_layer : int, optional
+                    residual : bool, optional
+                    dropout_rate : float, optional
+            mask_embedding_channels : int
+                Number of channels for the mask embedding.
+    """
     def __init__(self, model_config: Dict) -> None:
         super().__init__(model_config)
         ae_config = model_config['ae_config']
         self.ae = AutoEncoder(**ae_config)
-        self.mask_conv = nn.Conv2d(1, 1, kernel_size=5, stride=1, padding=2)
+        self.mask_conv = nn.Conv2d(1, model_config["mask_embedding_channels"],
+                                   kernel_size=1, stride=1)
 
-    
-    def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor, in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
-        s1_concat = s1_data.view(-1, 6, s1_data.shape[-2], s1_data.shape[-1])
-
-        return self.ae(s1_concat), None
-    
-
-class Berylium(Atom):
-    def __init__(self, model_config: Dict)-> None:
-        super().__init__(model_config)
-        ae_config = model_config['ae_config']
-        self.ae = AutoEncoder(**ae_config)
-        self.mask_conv = nn.Conv2d(1, model_config["mask_embedding_channels"], kernel_size=1, stride=1)
-
-    def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor, in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
+    # pylint: disable=unused-argument
+    def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor,
+                in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
         s1_concat = s1_data.view(-1, 6, s1_data.shape[-2], s1_data.shape[-1])
         mask_t2 = self.mask_conv(in_mask_lai[:, 0, :, :, :])
         mask_t1 = self.mask_conv(in_mask_lai[:, 1, :, :, :])
