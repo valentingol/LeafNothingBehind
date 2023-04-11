@@ -1,7 +1,7 @@
 """Dataset classes."""
 
 import os.path as osp
-from typing import Callable, Optional, Tuple
+from typing import Callable, Tuple
 
 import numpy as np
 import pandas as pd
@@ -41,9 +41,6 @@ class LNBDataset(Dataset):
         Path to the dataset folder.
     csv_name : str
         Name of the csv file containing the training data.
-    csv_grid_name : str or None, optional
-        Name of the csv file containing the 2*2 grid data.
-        Required only if grid_augmentation=True. By default None.
     grid_augmentation : bool, optional
         Whether to use grid augmentation or not. If activates, the dataset will
         sample an augmented data (zoom, rotation, translation) on the fly with a
@@ -71,7 +68,6 @@ class LNBDataset(Dataset):
     """
 
     def __init__(self, dataset_path: str, csv_name: str,
-                 csv_grid_name: Optional[str] = None,
                  grid_augmentation: bool = False,
                  mask_fn: Callable = mask_fn,
                  normalize_fn: Callable = normalize_fn,
@@ -89,14 +85,18 @@ class LNBDataset(Dataset):
         self.normalize_fn = normalize_fn
         # Data frames
         self.series_df = pd.read_csv(osp.join(dataset_path, csv_name))
-        if csv_grid_name and grid_augmentation:
-            self.grid_df = pd.read_csv(osp.join(self.dataset_path,
-                                                csv_grid_name))
+        if grid_augmentation:
+            csv_base_name, _ = osp.splitext(csv_name)
+            csv_grid_name = csv_base_name + '_grids.csv'
+            try:
+                self.grid_df = pd.read_csv(osp.join(self.dataset_path, csv_grid_name))
+            except FileNotFoundError as exc:
+                raise FileNotFoundError("Grid augmentation activated but no grid "
+                                        "found. Please run lnb/data/create_grids.py "
+                                        "before") from exc
+            self.grid_path = osp.join(self.dataset_path, csv_base_name + '_grids')
         else:
-            self.grid_df = None
-            if self.grid_augmentation:
-                raise ValueError('Rotation augmentation is not possible '
-                                 'without the 2*2 grid data.')
+            self.grid_df, self.grid_path = None, ''
 
     def __len__(self) -> int:
         """Length of the dataset."""
@@ -131,9 +131,8 @@ class LNBDataset(Dataset):
             data = torch.from_numpy(data_np).float().permute(0, 3, 1, 2)
             # shape (3, 3+c, 256, 256)
         else:
-            idx = idx // 2  # Two times more data with grid augmentation
-            # Change idx to get a data from grids dataset
-            idx_grid = int(idx / len(self.series_df) * len(self.grid_df))
+            # Get a random grid index (NOTE augmented data are always shuffled)
+            idx_grid = np.random.randint(len(self.grid_df))
 
             time_info = self._name_to_time_info(self.grid_df['uleft0'][idx_grid])
 
@@ -175,33 +174,20 @@ class LNBDataset(Dataset):
         return data, time_info
 
     def _get_2by2_grid(self, idx: int):
-        """Get a 2*2 grid of available data."""
-        grid_np_list = []
-        for key in self.grid_df.keys():
-            # Keys are uleft0, uright0, bleft0, bright0, uleft1, ... etc (3 time steps)
-            sample_list = []
-            for path in [self.s2_path, self.s2m_path, self.s1_path]:
-                data = tif.imread(osp.join(path, self.grid_df[key][idx]))
-                if path == self.s2m_path:
-                    data = self.mask_fn(data)
-                if data.ndim == 2:
-                    data = data[..., None]
-                sample_list.append(data)
-            sample = np.concatenate(sample_list, axis=-1)
-            grid_np_list.append(sample)
-        grid_np = np.stack(grid_np_list, axis=0)  # shape (4, 256, 256, 4)
-        # Split time and 2*2 locations on two axes
-        grid_np = rearrange(grid_np,
-                            '(time loc) h w c -> time loc h w c',
-                            time=3, loc=4)
-        # Rearrange locations to get a 2*2 grid
-        grid_np = rearrange(grid_np,
-                            'time (loc1 loc2) h w c -> time (loc1 w) (loc2 h) c',
-                            loc1=2, loc2=2)
-        grid_np = self.normalize_fn(grid_np)
+        """Get a 2*2 grid."""
+        grid_np = np.load(osp.join(self.grid_path,
+                                   f'grid_{idx}.npy'))  # shape (3, 512, 512, c)
+        # Process mask + normalize
+        mask_lai = self.mask_fn(grid_np[..., 1])
+        if mask_lai.ndim == 3:
+            mask_lai = mask_lai[..., None]
+        grid_np = np.concatenate([grid_np[..., 0:1], mask_lai, grid_np[..., -2:]],
+                                 axis=-1)
+        grid_np = self.normalize_fn(grid_np)  # shape (12, 256, 256, c)
+        # To torch tensor
         grid = torch.from_numpy(grid_np).float()
         grid = rearrange(grid, 'time H W c -> time c H W')
-        return grid  # shape (3, 4, 512, 512)
+        return grid  # shape (3, c, 512, 512)
 
     def _name_to_time_info(self, filename: str):
         """Parse the name of the file to get the period of time in the year
@@ -227,11 +213,10 @@ class LNBDataset(Dataset):
 if __name__ == '__main__':
     # Test the dataset and explore some data
     dataset = LNBDataset(dataset_path='../data', csv_name='train_regular.csv',
-                         csv_grid_name='train_regular_grids.csv',
                          grid_augmentation=True)
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True,
-                                             num_workers=6)
-    for data, time_info in dataloader:
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=16, shuffle=True,
+                                             num_workers=6, prefetch_factor=2)
+    for (data, time_info) in dataloader:
         print('time info:')
         print(time_info)
         print('data:')
