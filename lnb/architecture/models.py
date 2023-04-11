@@ -405,7 +405,7 @@ class Berylium(Atom):
         super().__init__(model_config)
         ae_config = model_config['ae_config']
         self.ae = AutoEncoder(**ae_config)
-        self.mask_conv = nn.Conv2d(1, model_config["mask_embedding_channels"], kernel_size=1, stride=1)
+        self.mask_conv = nn.Conv2d(6, model_config["mask_embedding_channels"], kernel_size=1, stride=1)
 
     def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor, in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
         s1_concat = s1_data.view(-1, 6, s1_data.shape[-2], s1_data.shape[-1])
@@ -413,5 +413,49 @@ class Berylium(Atom):
         mask_t1 = self.mask_conv(in_mask_lai[:, 1, :, :, :])
 
         concat_all = torch.cat([s1_concat, mask_t1, mask_t2], dim=1)
+
+        return self.ae(concat_all), None
+
+class Magnesium(Atom):
+    def __init__(self, model_config: Dict)-> None:
+        super().__init__(model_config)
+        ae_config = model_config['ae_config']
+        self.ae = AutoEncoder(**ae_config)
+        self.mask_conv = nn.Conv2d(6, model_config["mask_embedding_channels"], kernel_size=1, stride=1)
+
+    def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor, in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
+        mask_t2 = self.mask_conv(in_mask_lai[:, 0, :, :, :])
+        mask_t1 = self.mask_conv(in_mask_lai[:, 1, :, :, :])
+
+        s2 = in_lai.view(in_lai.shape[0], -1, in_lai.shape[-2], in_lai.shape[-1])
+
+        concat_all = torch.cat([s2, mask_t1, mask_t2], dim=1)
+
+        return self.ae(concat_all), None
+    
+class Sodium(Atom):
+    def __init__(self, model_config: Dict)-> None:
+        super().__init__(model_config)
+        ae_config = model_config['ae_config']
+        self.ae = AutoEncoder(**ae_config)
+        self.mask_conv = nn.Conv2d(6, model_config["mask_embedding_channels"], kernel_size=1, stride=1)
+
+        mlp_layers = model_config['mlp_layers']
+        self.mlp = nn.Sequential(
+            nn.Linear(2, mlp_layers[0]),
+            nn.ReLU(),
+            nn.Linear(mlp_layers[0], mlp_layers[1]),
+        )
+
+    def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor, in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
+        s1_concat = s1_data.view(-1, 6, s1_data.shape[-2], s1_data.shape[-1])
+
+        mask_t2 = self.mask_conv(in_mask_lai[:, 0, :, :, :])
+        mask_t1 = self.mask_conv(in_mask_lai[:, 1, :, :, :])
+        
+        timestamp_emb = self.mlp(glob) # (batch, 2) -> (batch, 1)
+        timestamp_map = timestamp_emb.view(-1, timestamp_emb.size(1), 1, 1).repeat(1, timestamp_emb.size(1), 256, 256)
+
+        concat_all = torch.cat([s1_concat, mask_t1, mask_t2, timestamp_map], dim=1)
 
         return self.ae(concat_all), None
