@@ -1,13 +1,14 @@
 """Models for the LNB task."""
 
 import abc
-from typing import Dict, Tuple
+import os
+from typing import Dict, Literal, Tuple, Union
 
 import torch
+import yaml
 from einops import rearrange
-from torch import nn
-
 from lnb.architecture.modules import AutoEncoder, SegFormerTransposed
+from torch import nn
 
 
 class Atom(nn.Module):
@@ -453,9 +454,81 @@ class Sodium(Atom):
         mask_t2 = self.mask_conv(in_mask_lai[:, 0, :, :, :])
         mask_t1 = self.mask_conv(in_mask_lai[:, 1, :, :, :])
         
-        timestamp_emb = self.mlp(glob) # (batch, 2) -> (batch, 1)
+        timestamp_emb = self.mlp(glob) 
         timestamp_map = timestamp_emb.view(-1, timestamp_emb.size(1), 1, 1).repeat(1, timestamp_emb.size(1), 256, 256)
 
         concat_all = torch.cat([s1_concat, mask_t1, mask_t2, timestamp_map], dim=1)
+
+        return self.ae(concat_all), None
+
+class Aluminium(Atom):
+    def __init__(self, model_config: Dict)-> None:
+        super().__init__(model_config)
+        ae_config = model_config['ae_config']
+        self.ae = AutoEncoder(**ae_config)
+        self.mask_conv = nn.Conv2d(6, model_config["mask_embedding_channels"], kernel_size=1, stride=1)
+        mlp_layers = model_config['mlp_layers']
+        self.mlp = nn.Sequential(
+            nn.Linear(2, mlp_layers[0]),
+            nn.ReLU(),
+            nn.Linear(mlp_layers[0], mlp_layers[1]),
+        )
+
+
+    def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor, in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
+        mask_t2 = self.mask_conv(in_mask_lai[:, 0, :, :, :])
+        mask_t1 = self.mask_conv(in_mask_lai[:, 1, :, :, :])
+
+        s2 = in_lai.view(in_lai.shape[0], -1, in_lai.shape[-2], in_lai.shape[-1])
+
+        timestamp_emb = self.mlp(glob) 
+        timestamp_map = timestamp_emb.view(-1, timestamp_emb.size(1), 1, 1).repeat(1, timestamp_emb.size(1), 256, 256)
+
+        concat_all = torch.cat([s2, mask_t1, mask_t2, timestamp_map], dim=1)
+
+        return self.ae(concat_all), None
+
+
+class Strontium(Atom):
+    def __init__(self, model_config: Dict)-> None:
+        super().__init__(model_config)
+        if model_config['sodium_config']['pretrained']:
+            self.sodium = self._load_model('sodium', model_config['sodium_config']['run_id'])
+        else:
+            self.sodium = Sodium(model_config['sodium_config'])
+
+        if model_config['aluminium_config']['pretrained']:
+            self.aluminium = self._load_model('aluminium', model_config['aluminium_config']['run_id'])
+        else:
+            self.aluminium = Aluminium(model_config['aluminium_config'])
+
+        self.sodium.ae.decoder_layers[-1] = nn.Identity()
+        self.aluminium.ae.decoder_layers[-1] = nn.Identity()
+
+        ae_config = model_config['ae_config']
+        self.ae = AutoEncoder(**ae_config)
+    
+    def _load_model(self, model_type: Literal['sodium', 'aluminium'], run_id: Union[str, int]) -> Union[Sodium, Aluminium]:
+        model_folder = os.path.join('..','models', model_type, str(run_id))
+        with open(os.path.join(model_folder, 'config.yaml'), encoding='utf-8') as cfg_file:
+            model_config = yaml.safe_load(cfg_file)['model']
+
+        if model_type == 'sodium':
+            model = Sodium(model_config)
+        elif model_type == 'aluminium':
+            model = Aluminium(model_config)
+        else:
+            raise ValueError(f'Unknown model type: {model_type}')
+        
+        model.load_state_dict(torch.load(os.path.join(model_folder, f'{run_id}_last.pth')))
+
+        return model
+        
+
+    
+    def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor, in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
+        sodium_out, _ = self.sodium(s1_data, in_lai, in_mask_lai, glob)
+        aluminium_out, _ = self.aluminium(s1_data, in_lai, in_mask_lai, glob)
+        concat_all = torch.cat([sodium_out, aluminium_out], dim=1)
 
         return self.ae(concat_all), None
