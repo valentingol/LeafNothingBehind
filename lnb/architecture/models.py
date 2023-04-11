@@ -65,34 +65,6 @@ class Hydrogen(Atom):
                 lai[i] = sample[0]
         return (lai, None)
 
-    # pylint: disable=unused-argument
-    def old_forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor,
-                    in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
-        """Forward pass.
-
-        LAI at t is LAI at t-1 except where mask is 0 where it is LAI at t-2
-        (normalized like t-1).
-
-        in_mask_lai must be binary (0 incorrect data).
-        """
-        lai_0, lai_1 = in_lai[:, 0:1], in_lai[:, 1:]
-
-        mean_0 = lai_0.mean(dim=(2, 3, 4), keepdim=True)
-        std_0 = lai_0.std(dim=(2, 3, 4), keepdim=True)
-        mean_1 = lai_1.mean(dim=(2, 3, 4), keepdim=True)
-        std_1 = lai_1.std(dim=(2, 3, 4), keepdim=True)
-        # Normalize LAI at t-2 to N(0, 1)
-        new_lai_0 = (lai_0 - mean_0) / (std_0 + 1e-7)
-        # Normalize LAI at t-2 like t-1
-        new_lai_0 = lai_0 * std_1 + mean_1
-        # Compute LAI at t
-        lai = lai_1 * in_mask_lai[:, 1] + new_lai_0 * (1 - in_mask_lai[:, 1])
-        # Return LAI at t-2 if LAI at t-1 is 0
-        for i in range(lai.shape[0]):
-            if lai_1[i].sum() == 0:
-                lai[i] = lai_0[i]
-        return (lai, None)
-
 
 class Scandium(Atom):
     """Scandium model for LNB.
