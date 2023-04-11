@@ -9,13 +9,15 @@ dataloader:
   prefetch_factor: 2
 model:
   ae_config:  # U-Net-like architecture
-    in_dim: 10 # 6 + 2*mask_embedding_channels
+    in_dim: 7  # 2 + 2*mask_emb + mlp_layers[-1]
     out_dim: 1
     layer_channels: [32, 64, 128]
     conv_per_layer: 2
     residual: true
     dropout_rate: 0.0
   mask_embedding_channels: 2
+  mlp_layers: [2, 1]
+
 train:
   learning_rate: 0.001
   learning_rate_n_mult: 2  # number of times to decay lr (evenly spaced during the full training)

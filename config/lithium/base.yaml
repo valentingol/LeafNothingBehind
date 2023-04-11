@@ -3,8 +3,8 @@ data:
   csv_name: 'train_regular.csv'
   grid_augmentation: false
 dataloader:
-  num_workers: 6
-  batch_size: 16
+  num_workers: 8
+  batch_size: 64
   shuffle: true
   prefetch_factor: 2
 model:

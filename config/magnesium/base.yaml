@@ -9,7 +9,7 @@ dataloader:
   prefetch_factor: 2
 model:
   ae_config:  # U-Net-like architecture
-    in_dim: 10 # 6 + 2*mask_embedding_channels
+    in_dim: 6  # always 2 (if input={VV, VH})
     out_dim: 1
     layer_channels: [32, 64, 128]
     conv_per_layer: 2
