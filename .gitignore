@@ -13,5 +13,3 @@
 wandb
 # conda env
 environment.yml
-#exp
-config/*/exp*
