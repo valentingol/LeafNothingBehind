@@ -146,7 +146,7 @@ class Trainer:
             Tuple: Losses
         """
         with torch.no_grad():
-            predictions = model(**data["input_data"])
+            predictions = self.model(**data["input_data"])
             losses = [
                 mse_loss(lai_pred=pred, **data["target_data"])
                 for pred in predictions
@@ -161,7 +161,7 @@ class Trainer:
         }
 
     def general_step(
-        self, name: str, dataloader: DataLoader, progress_bar, config: Dict
+        self, name: str, dataloader: DataLoader, progress_bar, config: Dict, subname: str = None
     ) -> None:
         """General step which can be used for train step and val steps.
 
@@ -189,8 +189,13 @@ class Trainer:
                 processed_data, loss_names=["mse_loss"]
             )
 
+            if subname: name = f"{name}/{subname}"
+
             for loss_name, loss_value in losses.items():
-                all_losses[loss_name].append(loss_value.detach().cpu().numpy())
+                loss_value = loss_value.detach().cpu().numpy()
+                # Clip loss value to [0, 1]
+                loss_value = np.clip(loss_value, 0, 1)
+                all_losses[loss_name].append(loss_value)
                 wandb.log({f"{name}/{loss_name}": loss_value})
 
             pbar.set_postfix(
@@ -243,7 +248,7 @@ class Trainer:
             for val_name, val_dataloader in self.dataloders["validation"].items():
                 torch.cuda.empty_cache()
                 train_mean_losses, train_std_losses, all_losses = self.general_step(
-                    "validation", val_dataloader, epoch_pbar, None
+                    "validation", val_dataloader, epoch_pbar, None, subname=val_name.split("_")[1]
                 )
 
             torch.cuda.empty_cache()

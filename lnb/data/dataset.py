@@ -11,6 +11,8 @@ from tifffile import tifffile as tif
 from torch.utils.data import Dataset
 from torchvision import transforms
 
+from lnb.data import meteo
+
 
 def normalize_fn(data):
     """Normalize numpy data under the format [LAI, LAI mask, VV, VH]."""
@@ -71,7 +73,8 @@ class LNBDataset(Dataset):
                  grid_augmentation: bool = False,
                  mask_fn: Callable = mask_fn,
                  normalize_fn: Callable = normalize_fn,
-                 name: str = 'LNBDataset') -> None:
+                 name: str = 'LNBDataset',
+                 use_weather: bool = False) -> None:
         self.name = name
         # Paths
         self.dataset_path = dataset_path
@@ -98,6 +101,11 @@ class LNBDataset(Dataset):
         else:
             self.grid_df, self.grid_path = None, ''
 
+        # Weather data
+        self.use_weather = use_weather
+        if self.use_weather:
+            self.weather_df = pd.read_csv(osp.join(self.dataset_path, 'meteo_full.csv'))
+
     def __len__(self) -> int:
         """Length of the dataset."""
         if self.grid_augmentation:
@@ -111,8 +119,20 @@ class LNBDataset(Dataset):
             # without augmentation
             if self.grid_augmentation:
                 idx = idx // 2  # Two times more data with grid augmentation
+
             samples_list = []
+
+            # Get time information
             time_info = self._name_to_time_info(self.series_df['0'][idx])
+            time_info = np.expand_dims(time_info, axis=(1, 2))
+
+            # Get weather data
+            if self.use_weather:
+                weather_data = self._get_weather_vector(idx)
+
+                # Concatenate time info and weather data
+                weather_data = np.concatenate([time_info, weather_data], axis=0)
+
             for tstep in ['0', '1', '2']:
                 mask_lai = self.mask_fn(tif.imread(
                     osp.join(self.s2m_path, self.series_df[tstep][idx])
@@ -171,6 +191,9 @@ class LNBDataset(Dataset):
                                                     interpolation=interpolation)
             except RuntimeError:  # When the crop is outbounded -> take the center
                 data = grid_r[:, :, 128:384, 128:384]
+
+        if self.use_weather:
+            return data, time_info, weather_data
         return data, time_info
 
     def _get_2by2_grid(self, idx: int):
@@ -188,6 +211,26 @@ class LNBDataset(Dataset):
         grid = torch.from_numpy(grid_np).float()
         grid = rearrange(grid, 'time H W c -> time c H W')
         return grid  # shape (3, c, 512, 512)
+
+    def _get_weather_vector(self, idx):
+        # Get weather data
+        location = meteo.decompose(self.series_df.iloc[idx])[0]
+        weather = self.weather_df[self.weather_df['city'] == location]
+
+        # Reset index
+        weather = weather.reset_index(drop=True)
+        # Limit weather data to the 5 last entries
+        weather = weather.iloc[-5:]
+
+        # Convert weather to numpy array and remove city and date columns
+        weather = weather.drop(columns=['city', 'date'])
+        weather = weather.to_numpy()
+
+        # Convert shape (5, 11) to (55, 1, 1)
+        weather = weather.reshape(-1)
+        weather = np.expand_dims(weather, axis=(1, 2))
+
+        return weather
 
     def _name_to_time_info(self, filename: str):
         """Parse the name of the file to get the period of time in the year
