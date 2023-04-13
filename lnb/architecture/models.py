@@ -7,7 +7,7 @@ from typing import Dict, Literal, Tuple, Union
 import torch
 import yaml
 from einops import rearrange
-from lnb.architecture.modules import AutoEncoder, SegFormerTransposed
+from lnb.architecture.modules import AutoEncoder, AutoYencoder, SegFormerTransposed
 from torch import nn
 
 
@@ -168,6 +168,8 @@ class Scandium(Atom):
 
         # Final convolutional block
         x = torch.cat([t_input, glob, s1_embed[:, 2]], dim=1)  # (batch, c, h, w)
+
+        # print("TEEEEEST EMB", x.shape)
         for layer in self.conv_block:
             x = layer(x)
             if layer._get_name() == 'ReLU':  # pylint: disable=protected-access
@@ -211,7 +213,7 @@ class Titanium(Atom):
         glob_module_dims = model_config['glob_module_dims']
         end_ae_config = model_config['end_ae_config']
         # AE for Sentinel-1 data
-        self.s1_ae = AutoEncoder(**s1_ae_config)
+        self.s1_ae = AutoYEncoder(**s1_ae_config)
         # Convolutional layers for LAI mask
         self.conv_lai_mask = nn.Conv2d(mask_in_dim, mask_out_dim,
                                        kernel_size=5, stride=1, padding=2)
@@ -616,39 +618,19 @@ class Rhodium(Atom):
         s2_encod_config = model_config['s2_encod_config']
         decoder_config = model_config['decoder_config']
 
-        mask_in_dim, mask_out_dim = model_config['mask_module_dim']
-        glob_module_dims = model_config['glob_module_dims']
         conv_block_dims = model_config['conv_block_dims']
 
-        self.ae = AutoEncoder(s1_encod_config, s2_encod_config, decoder_config)
-
-        # Convolutional layers for LAI mask
-        self.conv_lai_mask = nn.Conv2d(mask_in_dim, mask_out_dim,
-                                       kernel_size=5, stride=1, padding=2)
-        # 1*1 convolutional layers for global features
-        self.conv_glob = nn.Sequential()
-        for i in range(len(glob_module_dims) - 1):
-            self.conv_glob.add_module(
-                f"glob_conv_{i+1}",
-                nn.Conv2d(glob_module_dims[i], glob_module_dims[i + 1],
-                          kernel_size=1, stride=1, padding=0)
-            )
-            if i < len(glob_module_dims) - 2:
-                self.conv_glob.add_module(
-                    f"glob_conv_{i+1}_relu",
-                    nn.ReLU()
-                )
+        self.s_ae = AutoYencoder(s1_encod_config, s2_encod_config, decoder_config)
 
         # Convolutional block
-        first_dim = (mask_out_dim * 2 + glob_module_dims[-1]
-                     + s1_ae_config['out_dim'] * 3 + 2)
+        first_dim = (decoder_config['out_dim'] * 3 + 2)
         conv_block_dims = [first_dim] + conv_block_dims
         self.conv_block = nn.Sequential()
         for i in range(len(conv_block_dims) - 1):
             if i == 0:
                 in_channels = conv_block_dims[i]
             else:
-                in_channels = conv_block_dims[i] + 2
+                in_channels = conv_block_dims[i]
             self.conv_block.add_module(
                 f"conv_{i+1}",
                 nn.Conv2d(in_channels, conv_block_dims[i + 1],
@@ -662,7 +644,7 @@ class Rhodium(Atom):
         self.last_conv = nn.Sequential()
         self.last_conv.add_module(
             f"conv_{len(conv_block_dims)}",
-            nn.Conv2d(conv_block_dims[-1] + 2, 1,
+            nn.Conv2d(conv_block_dims[-1], 1,
                       kernel_size=1, stride=1, padding=0)
         )
 
@@ -671,32 +653,57 @@ class Rhodium(Atom):
         """Forward pass."""
         batch_size = in_lai.shape[0]
         size = in_lai.shape[-2:]
-        # S1 data embedding
+        # print("IN LAI SHAPE", in_lai.shape)
+        # print("MASK SHAPE", in_mask_lai.shape)
+        # print("MASK SHAPE", in_lai.shape[-2:])
+        # s2_data = torch.cat([in_lai, in_mask_lai], dim=2)
+
+        # print("TEST ==============", batch_size, size)
+
+        # S data embedding
         s1_data = rearrange(s1_data, "batch t c h w -> (batch t) c h w")
-        s1_embed = self.s1_ae(s1_data)
-        s1_embed = rearrange(s1_embed, "(batch t) c h w -> batch t c h w",
-                             batch=batch_size)
+        # print("AaAAAAA", s1_data.shape)
+        in_mask_lai_emb = rearrange(in_mask_lai, "batch t c h w -> (batch t) c h w")
+        # print("BBBBBBBB", in_mask_lai_emb.shape)
+        s_embed = self.s_ae(s1_data, in_mask_lai_emb)
+        # print("CCCCCC", s_embed.shape)
+        s_embed = rearrange(s_embed, "(batch t) c h w -> batch (t c) h w",
+                            batch=batch_size)
+        # print("DDDDDDDD", s_embed.shape)
+
         # Time steps information embedding
-        in_mask_lai = rearrange(in_mask_lai, "batch t c h w -> (batch t) c h w")
-        mask_lai_embed = self.conv_lai_mask(in_mask_lai)  # (batch*t, c, h, w)
-        mask_lai_embed = rearrange(mask_lai_embed, "(batch t) c h w -> batch (t c) h w",
-                                   batch=batch_size)
-        s1_input = rearrange(s1_embed[:, :2], "batch t c h w -> batch (t c) h w")
-        in_lai = torch.squeeze(in_lai, dim=2)  # (batch, c, h, w)
-        t_input = torch.cat([in_lai, mask_lai_embed, s1_input],
-                            dim=1)  # (batch, c, h, w)
+        # in_mask_lai = rearrange(in_mask_lai, "batch t c h w -> (batch t) c h w")
+        # mask_lai_embed = self.conv_lai_mask(in_mask_lai)  # (batch*t, c, h, w)
+        # mask_lai_embed = rearrange(mask_lai_embed, "(batch t) c h w -> batch (t c) h w",
+        #                            batch=batch_size)
+
+        # s1_input = rearrange(s_embed[:, :2], "batch t c h w -> batch (t c) h w")
+        # in_lai = torch.squeeze(in_lai, dim=2)  # (batch, c, h, w)
+        # t_input = torch.cat([in_lai, mask_lai_embed, s1_input],
+        #                     dim=1)  # (batch, c, h, w)
         # Global features embedding
-        glob = rearrange(glob, "batch c -> batch c 1 1")
-        glob = glob.repeat(1, 1, size[0], size[1])  # (batch, c, h, w)
-        glob = self.conv_glob(glob)  # (batch, c, h, w)
+        # glob = rearrange(glob, "batch c -> batch c 1 1")
+        # glob = glob.repeat(1, 1, size[0], size[1])  # (batch, c, h, w)
+        # glob = self.conv_glob(glob)  # (batch, c, h, w)
 
         # Final convolutional block
-        x = torch.cat([t_input, glob, s1_embed[:, 2]], dim=1)  # (batch, c, h, w)
-        for layer in self.conv_block:
-            x = layer(x)
-            if layer._get_name() == 'ReLU':  # pylint: disable=protected-access
-                # Residual connection with LAI at t-1 and t-2
-                x = torch.cat([x, in_lai], dim=1)
-        lai = self.last_conv(x)  # (batch, 1, h, w)
+        # x = torch.cat([t_input, glob, s1_embed[:, 2]], dim=1)  # (batch, c, h, w)
 
-        return (lai, s1_embed)  # return s1 embedding for intermediate supervision
+        # print("AAVANT s1", s1_input.shape)
+        # print("AAVANT s ", s_embed.shape)
+        # print("TEEEEST [:, 2]", s_embed[:, 2].shape)
+        # print("TEEEEST [:, 2]", s_embed.shape)
+
+        # s_embed = s_embed[:, 1]
+
+        # print("TEEEEEST EMB", s_embed.shape)
+
+        for layer in self.conv_block:
+            s_embed = layer(s_embed)
+            # if layer._get_name() == 'ReLU':  # pylint: disable=protected-access
+            # Residual connection with LAI at t-1 and t-2
+            # s_embed = torch.cat([s_embed, in_mask_lai_emb], dim=1)
+        lai = self.last_conv(s_embed)  # (batch, 1, h, w)
+
+        # return s1 embedding for intermediate supervision
+        return (lai, None)

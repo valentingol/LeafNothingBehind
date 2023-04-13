@@ -138,15 +138,22 @@ class AutoEncoder(nn.Module):
                 # Down-sample
                 x = nn.MaxPool2d(kernel_size=2, stride=2)(x)
         # Decoder
+
+        print("PREVIOUS", x.shape)
+
         for i, block in enumerate(self.decoder_layers[:-1]):
             # Up-sample
+            print("LE MEGA TEST1", x.shape)
             x = self.upsample_layers[i](x)
+            print("LE MEGA TEST2", x.shape)
             if self.residual:
                 # Concatenate along channel axis
                 x = torch.cat([x, interm_x[-i - 1]], dim=1)
             x = block(x)
+            print("LE MEGA TEST3", x.shape)
         # Last layer
         x = self.decoder_layers[-1](x)
+        print("LE MEGA TEST 4", x.shape)
         return x
 
 
@@ -205,7 +212,7 @@ class SegFormerTransposed(nn.Module):
         return x
 
 
-class AutoEncoderY(nn.Module):
+class AutoYencoder(nn.Module):
     """UNet-like auto-encoder with 2 encoder and 1 decoder customizable number of layers and channels.
     Input map should be square and have a power of 2 size. Output map has the
     same size as the input map.
@@ -239,7 +246,7 @@ class AutoEncoderY(nn.Module):
         self.s2_encoder_layers = self._build_encoder(s2_encod_config)
         self.decoder_layers, self.upsample_layers = self._build_decoder(decoder_config)
 
-    def _build_encoder(encod_config) -> nn.ModuleList:
+    def _build_encoder(self, encod_config) -> nn.ModuleList:
         """Return encoder layers list."""
         channels = [encod_config["in_dim"]] + encod_config["layer_channels"]
         encoder_layers = nn.ModuleList()
@@ -266,7 +273,7 @@ class AutoEncoderY(nn.Module):
             encoder_layers.append(block)
         return encoder_layers
 
-    def _build_decoder(decoder_config) -> Tuple[nn.ModuleList, nn.ModuleList]:
+    def _build_decoder(self, decoder_config) -> Tuple[nn.ModuleList, nn.ModuleList]:
         """Return decoder and up-sample layers list."""
         channels = decoder_config["layer_channels"][::-1] + [decoder_config["out_dim"]]
         decoder_layers = nn.ModuleList()
@@ -294,7 +301,7 @@ class AutoEncoderY(nn.Module):
             else:
                 block.add_module(
                     f"decoder_conv_{i + 1}_1",
-                    nn.Conv2d(2 * channels[i + 1], channels[i + 1],
+                    nn.Conv2d(channels[i + 1], channels[i + 1],
                               kernel_size=3, stride=1, padding=1)
                 )
             block.add_module(f"decoder_relu_{i + 1}_1", nn.ReLU())
@@ -343,17 +350,23 @@ class AutoEncoderY(nn.Module):
                 # Down-sample
                 s2 = nn.MaxPool2d(kernel_size=2, stride=2)(s2)
 
-        y = torch.cat((s1, s2), dim=1)
+        # print("S2 SHAPE", s2.shape)
+        # print("S1 SHAPE", s1.shape)
+
+        y = torch.cat((s1, s2), dim=0)
+        # y = s1
+        # print("LAAAA", y.shape)
 
         # Decoder
         for i, block in enumerate(self.decoder_layers[:-1]):
             # Up-sample
-            s1 = self.upsample_layers[i](s1)
-            s2 = self.upsample_layers[i](s2)
-            if self.residual:
+            y = self.upsample_layers[i](y)
+            # print("LAAAA1", y.shape)
+            if self.decoder_config["residual"]:
                 # Concatenate along channel axis
                 y = torch.cat([y, torch.cat(s1_interm[-i - 1], s2_interm[-i - 1])], dim=1)
             y = block(y)
+            # print("LAAAA2", y.shape)
 
         # Last layer
         y = self.decoder_layers[-1](y)
