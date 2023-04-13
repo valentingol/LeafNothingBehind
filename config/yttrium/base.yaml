@@ -16,7 +16,7 @@ model:
     residual: false
     dropout_rate: 0.0
   mask_module_dim: [6, 2]  # include input dim
-  glob_module_dims: [57, 128, 57]  # include input dim
+  glob_module_dims: [57, 16, 4]  # include input dim
   conv_block_dims: [32, 64, 128]  # exclude input dim (automatically inferred)
 train:
   learning_rate: 0.001
@@ -24,5 +24,5 @@ train:
   learning_rate_decay: 0.2  # lr *= decay at each decay step
   n_epochs: 30
   log_interval: 20  # in iterations
-  save_interval: 5  # in epochs
+  save_interval: 1  # in epochs
   interm_supervis: false  # intermediate supervision for AE

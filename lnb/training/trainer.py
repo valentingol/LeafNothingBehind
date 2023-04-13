@@ -183,9 +183,10 @@ class Trainer:
             desc=name.capitalize(),
             total=len(dataloader),
         )
+        stepname = (name + '.')[:-1]
         for idx_batch, data in pbar:
             processed_data = self.process_func(data, self.device)
-            losses = getattr(self, f"{name}_step")(
+            losses = getattr(self, f"{stepname}_step")(
                 processed_data, loss_names=["mse_loss"]
             )
 
@@ -248,7 +249,7 @@ class Trainer:
             for val_name, val_dataloader in self.dataloders["validation"].items():
                 torch.cuda.empty_cache()
                 train_mean_losses, train_std_losses, all_losses = self.general_step(
-                    "validation", val_dataloader, epoch_pbar, None, subname=val_name.split("_")[1]
+                    "validation", val_dataloader, epoch_pbar, None, subname=val_name.split("/")[1]
                 )
 
             torch.cuda.empty_cache()
@@ -256,7 +257,7 @@ class Trainer:
 
             if (epoch + 1) % train_config["save_interval"] == 0:
                 torch.save(
-                    model.state_dict(),
+                    self.model.state_dict(),
                     f"../models/{self.model.__name__.lower()}/{run_id}/{run_id}_ep{epoch + 1}.pth",
                 )
                 print(
