@@ -1,17 +1,18 @@
-# cache
+# Cache
 **cache
 **.pyc
 */__pycache__
-# env
+# Env
 .env
 **.egg-info
-# vscode
+# VScode
 .vscode
-# temporary files
+# Temporary files
 **tmp**
-# wandb
+# Wandb archive
 wandb
-# conda env
+# Conda env
 environment.yml
-#exp
-config/*/exp*
+# Experiments
+exp*.yaml
+*.sh

@@ -194,6 +194,10 @@ def train_val_loop(config: Dict, model: nn.Module, train_dataloader: DataLoader,
 def run(config: Dict) -> None:
     """Run training."""
     model = Scandium(config['model'])
+    # Print number of parameters
+    n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f'Model has {n_params} parameters')
+
     train_dataloader = DataLoader(LNBDataset(mask_fn=mask_fn, **config['data']),
                                   **config['dataloader'])
     # Build validation data loaders
@@ -203,7 +207,7 @@ def run(config: Dict) -> None:
     val_loader_config['shuffle'] = False  # No shuffle for validation
     val_loader_config['batch_size'] = 16  # Hard-coded batch size for validation
     val_dataloaders = []
-    for name in ['generalisation', 'regular', 's2_difference']:
+    for name in ['generalisation', 'regular', 'mask_cloudy']:
         val_data_config['name'] = name
         val_data_config['csv_name'] = f'validation_{name}.csv'
         val_dataloader = DataLoader(LNBDataset(mask_fn=mask_fn, **val_data_config),

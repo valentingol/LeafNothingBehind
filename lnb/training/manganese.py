@@ -1,4 +1,4 @@
-"""Training functions for Lithium."""
+"""Training functions for Manganese."""
 import argparse
 import os
 from time import time
@@ -12,7 +12,7 @@ from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
 
 import wandb
-from lnb.architecture.models import Berylium
+from lnb.architecture.models import Manganese
 from lnb.data.dataset import LNBDataset
 from lnb.training.log_utils import get_time_log
 from lnb.training.metrics import mse_loss
@@ -101,8 +101,8 @@ def train_val_loop(config: Dict, model: nn.Module, train_dataloader: DataLoader,
     """Training and validation loop."""
     # Save config
     run_id = config['run_id']
-    os.makedirs(f'../models/berylium/{run_id}', exist_ok=True)
-    with open(f'../models/berylium/{run_id}/config.yaml',
+    os.makedirs(f'../models/manganese/{run_id}', exist_ok=True)
+    with open(f'../models/manganese/{run_id}/config.yaml',
               'w', encoding='utf-8') as cfg_file:
         yaml.dump(dict(wandb.config), cfg_file)
     # Get training config params
@@ -182,18 +182,22 @@ def train_val_loop(config: Dict, model: nn.Module, train_dataloader: DataLoader,
         # Save model
         if (epoch + 1) % train_config['save_interval'] == 0:
             torch.save(model.state_dict(),
-                       f'../models/berylium/{run_id}/{run_id}_ep{epoch + 1}.pth')
-            print(f'Model saved to ../models/berylium/{run_id}/'
+                       f'../models/manganese/{run_id}/{run_id}_ep{epoch + 1}.pth')
+            print(f'Model saved to ../models/manganese/{run_id}/'
                   f'{run_id}_ep{epoch + 1}.pth')
 
     # Save final model
-    torch.save(model.state_dict(), f'../models/berylium/{run_id}/{run_id}_last.pth')
-    print(f'Model saved to ../models/berylium/{run_id}/{run_id}_last.pth')
+    torch.save(model.state_dict(), f'../models/manganese/{run_id}/{run_id}_last.pth')
+    print(f'Model saved to ../models/manganese/{run_id}/{run_id}_last.pth')
 
 
 def run(config: Dict) -> None:
     """Run training."""
-    model = Berylium(config['model'])
+    model = Manganese(config['model'])
+    # Print number of parameters
+    n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f'Model has {n_params} parameters')
+
     train_dataloader = DataLoader(LNBDataset(mask_fn=mask_fn, **config['data']),
                                   **config['dataloader'])
     # Build validation data loaders
@@ -221,7 +225,7 @@ def main() -> None:
     """Main function to run a train with wandb."""
     parser = argparse.ArgumentParser()
     parser.add_argument('--config_path', type=str, required=False,
-                        default='config/berylium/base.yaml')
+                        default='config/manganese/base.yaml')
     args = parser.parse_args()
 
     with open(args.config_path, encoding='utf-8') as cfg_file:
@@ -229,7 +233,7 @@ def main() -> None:
     # New id (for model name)
     run_id = np.random.randint(1000000)
     config['run_id'] = run_id
-    wandb.init(project='lnb', entity='leaf_nothing_behind', group='berylium',
+    wandb.init(project='lnb', entity='leaf_nothing_behind', group='manganese',
                config=config)
     run(dict(wandb.config))
     wandb.finish()

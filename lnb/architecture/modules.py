@@ -212,6 +212,47 @@ class SegFormerTransposed(nn.Module):
         return x
 
 
+class InceptionBlock(nn.Module):
+    """Inception Bock.
+
+    Takes power of 2 input channels and outputs power of 2 output channels.
+    """
+
+    def __init__(self, in_dim: int, out_dim: int, dropout: float):
+        super().__init__()
+        self.branch1x1 = nn.Conv2d(in_dim, out_dim // 4,
+                                   kernel_size=1, stride=1, padding=0)
+        self.branch3x3 = nn.Sequential(
+            nn.Conv2d(in_dim, in_dim // 2,
+                      kernel_size=1, stride=1, padding=0),
+            nn.Conv2d(in_dim // 2, out_dim // 2,
+                      kernel_size=3, stride=1, padding=1)
+        )
+        self.branch5x5 = nn.Sequential(
+            nn.Conv2d(in_dim, in_dim // 8,
+                      kernel_size=1, stride=1, padding=0),
+            nn.Conv2d(in_dim // 8, out_dim // 8,
+                      kernel_size=5, stride=1, padding=2)
+        )
+        self.branchpool = nn.Sequential(
+            nn.MaxPool2d(kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(in_dim, out_dim // 8,
+                      kernel_size=1, stride=1, padding=0)
+        )
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass."""
+        x_1 = self.branch1x1(x)
+        x_2 = self.branch3x3(x)
+        x_3 = self.branch5x5(x)
+        x_4 = self.branchpool(x)
+        x = torch.cat([x_1, x_2, x_3, x_4], dim=1)
+        x = nn.ReLU()(x)
+        x = self.dropout(x)
+        return x
+
+
 class AutoYencoder(nn.Module):
     """UNet-like auto-encoder with 2 encoder and 1 decoder customizable number of layers and channels.
     Input map should be square and have a power of 2 size. Output map has the
