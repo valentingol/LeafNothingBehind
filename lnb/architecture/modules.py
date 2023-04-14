@@ -336,7 +336,7 @@ class AutoYencoder(nn.Module):
             if decoder_config["residual"]:
                 block.add_module(
                     f"decoder_conv_{i + 1}_1",
-                    nn.Conv2d(5 * channels[i + 1], channels[i + 1],
+                    nn.Conv2d(2 * channels[i + 1], channels[i + 1],
                               kernel_size=3, stride=1, padding=1)
                 )
             else:
@@ -406,7 +406,10 @@ class AutoYencoder(nn.Module):
             # print("LAAAA1", y.shape)
             if self.decoder_config["residual"]:
                 # Concatenate along channel axis
-                y = torch.cat([y, torch.cat(s1_interm[-i - 1], s2_interm[-i - 1])], dim=1)
+                # print("S1 SHIP", s1_interm[-i - 1].shape)
+                # print("S2 SHIP", s2_interm[-i - 1].shape)
+                temp = torch.cat([s1_interm[-i - 1], s2_interm[-i - 1]], dim=0)
+                y = torch.cat([y, temp], dim=1)
             y = block(y)
             # print("LAAAA2", y.shape)
 

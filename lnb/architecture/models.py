@@ -886,14 +886,18 @@ class Rhodium(Atom):
         # print("IN LAI SHAPE", in_lai.shape)
         # print("MASK SHAPE", in_mask_lai.shape)
         # print("MASK SHAPE", in_lai.shape[-2:])
-        # s2_data = torch.cat([in_lai, in_mask_lai], dim=2)
+        s2_data = torch.cat([in_lai, in_mask_lai], dim=2)
+
+        # print("IN LAI SHAPE", in_lai.shape)
+        # print("IN in_mask_lai SHAPE", in_mask_lai.shape)
+        # print("S2 SHAPE", s2_data.shape)
 
         # print("TEST ==============", batch_size, size)
 
         # S data embedding
         s1_data = rearrange(s1_data, "batch t c h w -> (batch t) c h w")
         # print("AaAAAAA", s1_data.shape)
-        in_mask_lai_emb = rearrange(in_mask_lai, "batch t c h w -> (batch t) c h w")
+        in_mask_lai_emb = rearrange(s2_data, "batch t c h w -> (batch t) c h w")
         # print("BBBBBBBB", in_mask_lai_emb.shape)
         # print("SHAPE avant", in_mask_lai_emb.shape)
         s_embed = self.s_ae(s1_data, in_mask_lai_emb)
