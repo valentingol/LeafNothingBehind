@@ -974,7 +974,7 @@ def test_csv(data_path):
                                                                               "test_regular.csv"))
 
     print("Check size for val_mask_cloudy dataset taken from CSV = ", size_check(data_path,
-                                                                                 "val_mask_cloudy.csv"))
+                                                                                 "validation_mask_cloudy.csv"))
     print("Check size for test_mask_cloudy dataset taken from CSV = ", size_check(data_path,
                                                                                   "test_mask_cloudy.csv"))
 
@@ -986,7 +986,7 @@ def test_csv(data_path):
                                             #  "test_s1_difference.csv",
                                             "validation_regular.csv",
                                             "test_regular.csv",
-                                            "val_mask_cloudy.csv",
+                                            "validation_mask_cloudy.csv",
                                             "test_mask_cloudy.csv"])
 
     final_checkers(grids_array["train_regular.csv"],
@@ -996,7 +996,7 @@ def test_csv(data_path):
                    #    grids_array["test_s1_difference.csv"],
                    grids_array["validation_regular.csv"],
                    grids_array["test_regular.csv"],
-                   grids_array["val_mask_cloudy.csv"],
+                   grids_array["validation_mask_cloudy.csv"],
                    grids_array["test_mask_cloudy.csv"],
                    data_path)
     final_checkers(grids_array["train_cloudy.csv"],
@@ -1006,7 +1006,7 @@ def test_csv(data_path):
                    #    grids_array["test_s1_difference.csv"],
                    grids_array["validation_regular.csv"],
                    grids_array["test_regular.csv"],
-                   grids_array["val_mask_cloudy.csv"],
+                   grids_array["validation_mask_cloudy.csv"],
                    grids_array["test_mask_cloudy.csv"],
                    data_path)
 
@@ -1121,7 +1121,7 @@ if __name__ == '__main__':
                 # "test_s1_difference.csv": test_s1_difference_dataset,
                 "validation_regular.csv": val_regular_dataset,
                 "test_regular.csv": test_regular_dataset,
-                "val_mask_cloudy.csv": val_mask_cloudy,
+                "validation_mask_cloudy.csv": val_mask_cloudy,
                 "test_mask_cloudy.csv": test_mask_cloudy})
 
     test_csv(DATA_PATH)
