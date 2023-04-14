@@ -84,7 +84,7 @@ if __name__ == "__main__":
     val_loader_config["batch_size"] = 16  # Hard-coded batch size for validation
 
     val_dataloaders = {}
-    for name in ["generalisation", "regular", "s2_difference"]:
+    for name in ["generalisation", "regular", "mask_cloudy:
         val_data_config["name"] = name
         val_data_config["csv_name"] = f"validation_{name}.csv"
         val_dataloader = DataLoader(
