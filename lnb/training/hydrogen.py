@@ -116,7 +116,7 @@ def run(config: Dict) -> None:
     val_data_config['grid_augmentation'] = False  # No augmentation for validation
     val_loader_config['shuffle'] = False  # No shuffle for validation
     val_dataloaders = []
-    for name in ['generalisation', 'regular', 's2_difference']:
+    for name in ['generalisation', 'regular', 'mask_cloudy']:
         val_data_config['name'] = name
         val_data_config['csv_name'] = f'validation_{name}.csv'
         val_dataloader = DataLoader(LNBDataset(mask_fn=mask_fn, **val_data_config),
