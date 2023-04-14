@@ -15,7 +15,7 @@ model:
     conv_per_layer: 1
     dropout_rate: 0.0
   s2_encod_config:  # U-Net-like architecture
-    in_dim: 2  # always 2 (S2, mask)
+    in_dim: 6  # always 6
     out_dim: 1
     layer_channels: [16, 32, 64]
     conv_per_layer: 1

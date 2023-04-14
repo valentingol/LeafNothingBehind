@@ -23,9 +23,9 @@ def retrieve_weather(
 
     if end_date is None:
         end_date = start_date
-    if type(start_date) == str:
+    if isinstance(start_date, str):
         start_date = datetime.strptime(start_date, time_format or "%Y-%m-%d")
-    if type(end_date) == str:
+    if isinstance(end_date, str):
         end_date = datetime.strptime(end_date, time_format or "%Y-%m-%d")
 
     # Use the geolocator to get the location coordinates of the city
@@ -39,7 +39,7 @@ def retrieve_weather(
     # Get daily data from start to end date
     km = 1000
     stations = Stations()
-    stations = stations.nearby(location.latitude, location.longitude, 100*km)
+    stations = stations.nearby(location.latitude, location.longitude, 100 * km)
     print(f"Stations found: {stations.count()}")
 
     stations = stations.fetch()
@@ -152,8 +152,9 @@ def extract(csv_path: str):
             )
 
     # Save to csv
-    df.to_csv("..\data\meteo.csv", index=False)
-    meteo_df.to_csv("..\data\meteo_full.csv", index=False)
+    df.to_csv("../data/meteo.csv", index=False)
+    meteo_df.to_csv("../data/meteo_full.csv", index=False)
+
 
 if __name__ == "__main__":
     # Arg parser
@@ -163,9 +164,8 @@ if __name__ == "__main__":
 
     # Load and process the image series dataframe
 
-    series = pd.read_csv("..\data\image_series.csv")
-    weather = pd.read_csv("..\data\meteo_full.csv")
-
+    series = pd.read_csv("../data/image_series.csv")
+    weather = pd.read_csv("../data/meteo_full.csv")
 
     # Get weather data
     location = decompose(series.iloc[45])[0]
