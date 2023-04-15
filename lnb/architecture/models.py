@@ -162,7 +162,7 @@ class Scandium(Atom):
         t_input = torch.cat([in_lai, mask_lai_embed, s1_input],
                             dim=1)  # (batch, c, h, w)
         # Global features embedding
-        glob = rearrange(glob, "batch c -> batch c 1 1")
+        # glob = rearrange(glob, "batch c -> batch c 1 1")
         glob = glob.repeat(1, 1, size[0], size[1])  # (batch, c, h, w)
         glob = self.conv_glob(glob)  # (batch, c, h, w)
 
