@@ -298,7 +298,6 @@ def get_datas_arround_missing_datas(grids, expected_grids_validation_test_size):
 
     for grid_name, grid in grids.items():
 
-
         validation_test_data_for_each_grid[grid_name] = np.zeros((33, 33),
                                                                  dtype=np.uint)
         valtest_data_num_per_grid[grid_name] = 0
@@ -321,7 +320,6 @@ def get_datas_arround_missing_datas(grids, expected_grids_validation_test_size):
                 grid, valtest_data_num_per_grid[grid_name],
                 validation_test_data_for_each_grid[grid_name],
                 expected_grids_validation_test_size[grid_name])
-
 
     return validation_test_data_for_each_grid, valtest_data_num_per_grid
 
@@ -358,7 +356,6 @@ def split_train_val_test(validation_test_percent, data_path):
 
     print("Based on each grid size expected total_val_test_data_size=",
           potential_total_val_test_data_size)
-
 
     real_test_val_dataset_total_size = 0
     for _, dataset_size in number_of_data_for_valtest_for_each_grids.items():
@@ -408,19 +405,15 @@ def mask(img_mask):
     return np.where(img_mask > 9, 0.0, interm)
 
 
-
 def cloudy_pixels_proportions(line, from_cloudy_percentage, data_path):
     s2m_path = osp.join(data_path, 's2-mask')  # contains mask
-
 
     t1_mask = tif.imread(osp.join(s2m_path, line[2]))
     t2_mask = tif.imread(osp.join(s2m_path, line[1]))
 
-
     proportions_array = [
         from_cloudy_percentage * 256 * 256,
         0.95 * 256 * 256]
-
 
     res = [-1, -1]
 
@@ -653,7 +646,6 @@ def get_train_val_test_cloudy(cloudy_pixels, pro_array):
     return split_cloudy_set(cloudy_pixels)
 
 
-
 def get_cloudy_dataset(dataset_to_check, from_cloudy_percentage, data_path):
 
     csv_path = osp.join(data_path, 'image_series.csv')
@@ -673,7 +665,6 @@ def get_cloudy_dataset(dataset_to_check, from_cloudy_percentage, data_path):
                     cloudy_pixels[head] = np.full((33, 33, 2), -1)
                 cloudy_pixels[head][row, col], proportions_array = cloudy_pixels_proportions(
                     line, from_cloudy_percentage, data_path)
-
 
     train_mask_cloudy, val_mask_cloudy, test_mask_cloudy = get_train_val_test_cloudy(
         cloudy_pixels, proportions_array,
@@ -703,7 +694,6 @@ def get_dataset_size(grids):
     return size
 
 
-
 def get_datasets_for_metrics(val_test_dataset, val_test_dataset_total_size,
                              grids_size, from_cloudy_percentage, data_path):
 
@@ -714,7 +704,6 @@ def get_datasets_for_metrics(val_test_dataset, val_test_dataset_total_size,
     # generalisation_dataset = {
     #     "KALININGRAD_GUSEV_2018-04-07_2018-04-19": kalingrad_copy}
 
-
     # generalisation_size = get_dataset_size(generalisation_dataset)
     # print("Generalisation dataset size =", generalisation_size)
 
@@ -723,7 +712,6 @@ def get_datasets_for_metrics(val_test_dataset, val_test_dataset_total_size,
 
     # s1_difference_dataset = get_s1_differences_dataset(val_test_dataset, data_path)
 
-
     # Data set for the netrics that give us the performance when the t et t-1
     # s1 data are very different
     print("\n==== CLOUDY VAL_TEST PART ====\n")
@@ -731,7 +719,6 @@ def get_datasets_for_metrics(val_test_dataset, val_test_dataset_total_size,
     train_mask_cloudy, val_mask_cloudy, test_mask_cloudy = get_cloudy_dataset(
 
         val_test_dataset, from_cloudy_percentage, data_path)
-
 
     print("\n==== FIN DE LA CLOUDY VAL_TEST PART ====\n")
 
@@ -745,15 +732,6 @@ def get_datasets_for_metrics(val_test_dataset, val_test_dataset_total_size,
     return val_test_dataset, train_mask_cloudy, val_mask_cloudy, test_mask_cloudy
 
 
-    return (
-        generalisation_dataset,
-        val_test_dataset,
-        train_mask_cloudy,
-        val_mask_cloudy,
-        test_mask_cloudy,
-    )
-
-
 def check_no_duplication(train_data_set,
                          #  val_generalisation_dataset,
                          #  test_generalisation_dataset,
@@ -764,19 +742,6 @@ def check_no_duplication(train_data_set,
                          val_mask_cloudy,
                          test_mask_cloudy
                          ):
-
-
-def check_no_duplication(
-    train_data_set,
-    val_generalisation_dataset,
-    test_generalisation_dataset,
-    #  val_s1_difference_dataset,
-    #  test_s1_difference_dataset,
-    val_regular_dataset,
-    test_regular_dataset,
-    val_mask_cloudy,
-    test_mask_cloudy,
-):
     for key, _ in train_data_set.items():
         for i in range(32):
             for j in range(32):
@@ -857,7 +822,6 @@ def final_checkers(train_data_set,
                    test_mask_cloudy,
                    data_path):
 
-
     # train_difference_dataset = get_s1_differences_dataset(train_data_set, data_path)
 
     # grid_show(train_difference_dataset, "TRAIN DIFF DATASET")
@@ -876,7 +840,6 @@ def final_checkers(train_data_set,
         val_mask_cloudy,
         test_mask_cloudy,
     )
-
 
     # check_no_duplication_val_test(val_generalisation_dataset,
     #                               test_generalisation_dataset)
@@ -920,7 +883,6 @@ def split_val_test(regular_dataset):
     val_regular_dataset = {}
     test_regular_dataset = {}
 
-
     # val_generalisation_dataset,
     # test_generalisation_dataset = get_one_of_two_datas(
     #     generalisation_dataset)
@@ -950,7 +912,6 @@ def split_val_test(regular_dataset):
 
     return (  # val_s1_difference_dataset, test_s1_difference_dataset,
         val_regular_dataset, test_regular_dataset)
-
 
 
 def clean_empty_key(array):
@@ -1035,7 +996,6 @@ def test_csv(data_path):
         size_check(data_path, "train_cloudy.csv"),
     )
 
-
     # print("Check size for val generalisation dataset taken from CSV = ", size_check(data_path,
     #                                                                                 "validation_generalisation.csv"))
     # print("Check size for test generalisation dataset taken from CSV = ", size_check(data_path,
@@ -1045,7 +1005,6 @@ def test_csv(data_path):
     #     "validation_s1_difference.csv"))
     # print("Check size for test s1 difference dataset taken from CSV = ", size_check(
     #     "test_s1_difference.csv"))
-
 
     print("Check size for val regular dataset taken from CSV = ", size_check(data_path,
                                                                              "validation_regular.csv"))
@@ -1160,7 +1119,6 @@ if __name__ == "__main__":
     )
     print("========")
 
-
     (val_regular_dataset,
      test_regular_dataset) = split_val_test(regular_dataset)
     # generalisation_dataset,
@@ -1168,11 +1126,9 @@ if __name__ == "__main__":
     # regular_dataset
     # )
 
-
     print("val_mask_cloudy_dataset size", get_dataset_size(val_mask_cloudy))
     print("test_mask_cloudy_dataset size", get_dataset_size(test_mask_cloudy))
     print("========")
-
 
     clean_empty_key([
         # val_generalisation_dataset,
@@ -1181,7 +1137,6 @@ if __name__ == "__main__":
                     #  test_s1_difference_dataset,
                     val_regular_dataset,
                     test_regular_dataset])
-
 
     final_checkers(
         train_data_set,
@@ -1219,7 +1174,6 @@ if __name__ == "__main__":
                 "test_regular.csv": test_regular_dataset,
                 "validation_mask_cloudy.csv": val_mask_cloudy,
                 "test_mask_cloudy.csv": test_mask_cloudy})
-
 
     test_csv(DATA_PATH)
 
