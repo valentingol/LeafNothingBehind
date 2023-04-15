@@ -19,3 +19,47 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 version = "1.0"
+
+[tool.ruff]
+# pycodestyle error (E) and warning (W), pyflakes (F), mccabe (C90), isort (I),
+# pydocstyle (D), numpy-related (NPY), pandas-related (PD),
+# flake8:
+# annotations (ANN), boolean-trap (FBT), builtins (A), commas (COM),
+# comprehensions (C4), import conventions (ICN), pie (PIE), pytest-style (PT),
+# return (RET), simplify (SIM), tidy-imports (TID), unused-arguments (ARG)
+select = ['A', 'ANN', 'ARG', 'C4', 'C90', 'COM', 'D', 'E', 'F', 'FBT', 'I',
+          'ICN', 'NPY', 'PD', 'PIE', 'PT', 'RET', 'SIM', 'TID', 'W']
+ignore = ['ANN101', 'RET504']
+fixable = ['A', 'ANN', 'ARG', 'BLE', 'C4', 'C90', 'COM', 'D', 'E', 'F', 'FBT', 'I',
+           'ICN', 'NPY', 'PD', 'PIE', 'PT', 'RET', 'SIM', 'TID', 'W']
+exclude = [".eggs", ".git", ".mypy_cache", ".ruff_cache", ".venv", "__pypackages__", "venv"]
+
+line-length = 88
+target-version = "py37"
+
+[tool.ruff.mccabe]
+max-complexity = 10
+
+[tool.flake8]
+max-line-length = 88
+
+[tool.black]
+line-length = 88
+
+[tool.ruff.pydocstyle]
+convention = 'numpy'
+
+[tool.mypy]
+check_untyped_defs = true
+disallow_any_generics = false
+disallow_incomplete_defs = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+files = '**/*.py'
+ignore_missing_imports = true
+no_implicit_optional = true
+no_implicit_reexport = true
+pretty = true
+strict_equality = true
+warn_redundant_casts = true
+warn_unused_ignores = true
