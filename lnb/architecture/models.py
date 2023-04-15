@@ -109,12 +109,12 @@ class Scandium(Atom):
                 f"glob_conv_{i+1}",
                 nn.Conv2d(glob_module_dims[i], glob_module_dims[i + 1],
                           kernel_size=1, stride=1, padding=0)
-                )
+            )
             if i < len(glob_module_dims) - 2:
                 self.conv_glob.add_module(
                     f"glob_conv_{i+1}_relu",
                     nn.ReLU()
-                    )
+                )
         # Convolutional block
         first_dim = (mask_out_dim * 2 + glob_module_dims[-1]
                      + s1_ae_config['out_dim'] * 3 + 2)
@@ -129,11 +129,11 @@ class Scandium(Atom):
                 f"conv_{i+1}",
                 nn.Conv2d(in_channels, conv_block_dims[i + 1],
                           kernel_size=3, stride=1, padding=1)
-                )
+            )
             self.conv_block.add_module(
                 f"conv_{i+1}_relu",
                 nn.ReLU()
-                )
+            )
         # Last convolutional layer
         self.last_conv = nn.Sequential()
         self.last_conv.add_module(
@@ -222,12 +222,12 @@ class Titanium(Atom):
                 f"glob_conv_{i+1}",
                 nn.Conv2d(glob_module_dims[i], glob_module_dims[i + 1],
                           kernel_size=1, stride=1, padding=0)
-                )
+            )
             if i < len(glob_module_dims) - 2:
                 self.conv_glob.add_module(
                     f"glob_conv_{i+1}_relu",
                     nn.ReLU()
-                    )
+                )
         # Ending AE
         first_dim = (mask_out_dim * 2 + glob_module_dims[-1]
                      + s1_ae_config['out_dim'] * 3 + 2)
@@ -317,12 +317,12 @@ class Vanadium(Atom):
                 f"glob_conv_{i+1}",
                 nn.Conv2d(glob_module_dims[i], glob_module_dims[i + 1],
                           kernel_size=1, stride=1, padding=0)
-                )
+            )
             if i < len(glob_module_dims) - 2:
                 self.conv_glob.add_module(
                     f"glob_conv_{i+1}_relu",
                     nn.ReLU()
-                    )
+                )
         # SegFormer + Transposed convolutional block
         first_dim = (mask_out_dim * 2 + glob_module_dims[-1]
                      + s1_ae_config['out_dim'] * 3 + 2)
@@ -417,12 +417,12 @@ class Manganese(Atom):
                 f"glob_conv_{i+1}",
                 nn.Conv2d(glob_module_dims[i], glob_module_dims[i + 1],
                           kernel_size=1, stride=1, padding=0)
-                )
+            )
             if i < len(glob_module_dims) - 2:
                 self.conv_glob.add_module(
                     f"glob_conv_{i+1}_relu",
                     nn.ReLU()
-                    )
+                )
         # Inception convolutional block
         first_dim = (mask_out_dim * 2 + glob_module_dims[-1]
                      + s1_ae_config['out_dim'] * 3 + 2)
@@ -437,7 +437,7 @@ class Manganese(Atom):
                 f"inception_block_{i+1}",
                 InceptionBlock(in_channels, conv_block_dims[i + 1],
                                dropout=conv_block_dropout)
-                )
+            )
         # Last convolutional layer
         self.last_conv = nn.Sequential()
         self.last_conv.add_module(
@@ -528,6 +528,7 @@ class Berylium(Atom):
             mask_embedding_channels : int
                 Number of channels for the mask embedding.
     """
+
     def __init__(self, model_config: Dict) -> None:
         super().__init__(model_config)
         ae_config = model_config['ae_config']
@@ -548,13 +549,18 @@ class Berylium(Atom):
 
 
 class Magnesium(Atom):
-    def __init__(self, model_config: Dict)-> None:
+    def __init__(self, model_config: Dict) -> None:
         super().__init__(model_config)
         ae_config = model_config['ae_config']
         self.ae = AutoEncoder(**ae_config)
-        self.mask_conv = nn.Conv2d(6, model_config["mask_embedding_channels"], kernel_size=1, stride=1)
+        self.mask_conv = nn.Conv2d(
+            6,
+            model_config["mask_embedding_channels"],
+            kernel_size=1,
+            stride=1)
 
-    def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor, in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
+    def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor,
+                in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
         mask_t2 = self.mask_conv(in_mask_lai[:, 0, :, :, :])
         mask_t1 = self.mask_conv(in_mask_lai[:, 1, :, :, :])
 
@@ -566,11 +572,15 @@ class Magnesium(Atom):
 
 
 class Sodium(Atom):
-    def __init__(self, model_config: Dict)-> None:
+    def __init__(self, model_config: Dict) -> None:
         super().__init__(model_config)
         ae_config = model_config['ae_config']
         self.ae = AutoEncoder(**ae_config)
-        self.mask_conv = nn.Conv2d(6, model_config["mask_embedding_channels"], kernel_size=1, stride=1)
+        self.mask_conv = nn.Conv2d(
+            6,
+            model_config["mask_embedding_channels"],
+            kernel_size=1,
+            stride=1)
 
         mlp_layers = model_config['mlp_layers']
         self.mlp = nn.Sequential(
@@ -579,25 +589,37 @@ class Sodium(Atom):
             nn.Linear(mlp_layers[0], mlp_layers[1]),
         )
 
-    def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor, in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
+    def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor,
+                in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
         s1_concat = s1_data.view(-1, 6, s1_data.shape[-2], s1_data.shape[-1])
 
         mask_t2 = self.mask_conv(in_mask_lai[:, 0, :, :, :])
         mask_t1 = self.mask_conv(in_mask_lai[:, 1, :, :, :])
 
         timestamp_emb = self.mlp(glob)
-        timestamp_map = timestamp_emb.view(-1, timestamp_emb.size(1), 1, 1).repeat(1, timestamp_emb.size(1), 256, 256)
+        timestamp_map = timestamp_emb.view(-1,
+                                           timestamp_emb.size(1),
+                                           1,
+                                           1).repeat(1,
+                                                     timestamp_emb.size(1),
+                                                     256,
+                                                     256)
 
         concat_all = torch.cat([s1_concat, mask_t1, mask_t2, timestamp_map], dim=1)
 
         return self.ae(concat_all), None
 
+
 class Aluminium(Atom):
-    def __init__(self, model_config: Dict)-> None:
+    def __init__(self, model_config: Dict) -> None:
         super().__init__(model_config)
         ae_config = model_config['ae_config']
         self.ae = AutoEncoder(**ae_config)
-        self.mask_conv = nn.Conv2d(6, model_config["mask_embedding_channels"], kernel_size=1, stride=1)
+        self.mask_conv = nn.Conv2d(
+            6,
+            model_config["mask_embedding_channels"],
+            kernel_size=1,
+            stride=1)
         mlp_layers = model_config['mlp_layers']
         self.mlp = nn.Sequential(
             nn.Linear(2, mlp_layers[0]),
@@ -605,15 +627,21 @@ class Aluminium(Atom):
             nn.Linear(mlp_layers[0], mlp_layers[1]),
         )
 
-
-    def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor, in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
+    def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor,
+                in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
         mask_t2 = self.mask_conv(in_mask_lai[:, 0, :, :, :])
         mask_t1 = self.mask_conv(in_mask_lai[:, 1, :, :, :])
 
         s2 = in_lai.view(in_lai.shape[0], -1, in_lai.shape[-2], in_lai.shape[-1])
 
         timestamp_emb = self.mlp(glob)
-        timestamp_map = timestamp_emb.view(-1, timestamp_emb.size(1), 1, 1).repeat(1, timestamp_emb.size(1), 256, 256)
+        timestamp_map = timestamp_emb.view(-1,
+                                           timestamp_emb.size(1),
+                                           1,
+                                           1).repeat(1,
+                                                     timestamp_emb.size(1),
+                                                     256,
+                                                     256)
 
         concat_all = torch.cat([s2, mask_t1, mask_t2, timestamp_map], dim=1)
 
@@ -621,7 +649,7 @@ class Aluminium(Atom):
 
 
 class Strontium(Atom):
-    def __init__(self, model_config: Dict)-> None:
+    def __init__(self, model_config: Dict) -> None:
         super().__init__(model_config)
         if model_config['sodium_config']['pretrained']:
             self.sodium = self._load_model('sodium', model_config['sodium_config']['run_id'])
@@ -629,7 +657,8 @@ class Strontium(Atom):
             self.sodium = Sodium(model_config['sodium_config'])
 
         if model_config['aluminium_config']['pretrained']:
-            self.aluminium = self._load_model('aluminium', model_config['aluminium_config']['run_id'])
+            self.aluminium = self._load_model(
+                'aluminium', model_config['aluminium_config']['run_id'])
         else:
             self.aluminium = Aluminium(model_config['aluminium_config'])
 
@@ -639,8 +668,9 @@ class Strontium(Atom):
         ae_config = model_config['ae_config']
         self.ae = AutoEncoder(**ae_config)
 
-    def _load_model(self, model_type: Literal['sodium', 'aluminium'], run_id: Union[str, int]) -> Union[Sodium, Aluminium]:
-        model_folder = os.path.join('..','models', model_type, str(run_id))
+    def _load_model(self, model_type: Literal['sodium', 'aluminium'],
+                    run_id: Union[str, int]) -> Union[Sodium, Aluminium]:
+        model_folder = os.path.join('..', 'models', model_type, str(run_id))
         with open(os.path.join(model_folder, 'config.yaml'), encoding='utf-8') as cfg_file:
             model_config = yaml.safe_load(cfg_file)['model']
 
@@ -655,16 +685,13 @@ class Strontium(Atom):
 
         return model
 
-    def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor, in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
+    def forward(self, s1_data: torch.Tensor, in_lai: torch.Tensor,
+                in_mask_lai: torch.Tensor, glob: torch.Tensor) -> Tuple:
         sodium_out, _ = self.sodium(s1_data, in_lai, in_mask_lai, glob)
         aluminium_out, _ = self.aluminium(s1_data, in_lai, in_mask_lai, glob)
         concat_all = torch.cat([sodium_out, aluminium_out], dim=1)
 
         return self.ae(concat_all), None
-
-
-
-
 
 
 class Yttrium(Atom):
@@ -709,12 +736,12 @@ class Yttrium(Atom):
                 f"glob_conv_{i+1}",
                 nn.Conv2d(glob_module_dims[i], glob_module_dims[i + 1],
                           kernel_size=1, stride=1, padding=0)
-                )
+            )
             if i < len(glob_module_dims) - 2:
                 self.conv_glob.add_module(
                     f"glob_conv_{i+1}_relu",
                     nn.ReLU()
-                    )
+                )
         # Convolutional block
         first_dim = (mask_out_dim * 2 + glob_module_dims[-1]
                      + s1_ae_config['out_dim'] * 3 + 2)
@@ -729,11 +756,11 @@ class Yttrium(Atom):
                 f"conv_{i+1}",
                 nn.Conv2d(in_channels, conv_block_dims[i + 1],
                           kernel_size=3, stride=1, padding=1)
-                )
+            )
             self.conv_block.add_module(
                 f"conv_{i+1}_relu",
                 nn.ReLU()
-                )
+            )
         # Last convolutional layer
         self.last_conv = nn.Sequential()
         self.last_conv.add_module(
