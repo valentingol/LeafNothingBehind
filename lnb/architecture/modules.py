@@ -385,7 +385,7 @@ class AutoYencoder(nn.Module):
         # S2 Encoder
         s2_interm = []
         for i, block in enumerate(self.s2_encoder_layers):
-            # print("SHAPE", s2.shape)
+            # print("S2 SHAPE", s2.shape)
             s2 = block(s2)
             if i < len(self.s2_encoder_layers) - 1:
                 s2_interm.append(s2)

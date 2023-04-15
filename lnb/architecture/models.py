@@ -847,8 +847,12 @@ class Rhodium(Atom):
         s1_encod_config = model_config['s1_encod_config']
         s2_encod_config = model_config['s2_encod_config']
         decoder_config = model_config['decoder_config']
+        mask_in_dim, mask_out_dim = model_config['mask_module_dim']
 
         conv_block_dims = model_config['conv_block_dims']
+
+        self.conv_lai_mask = nn.Conv2d(mask_in_dim, mask_out_dim,
+                                       kernel_size=5, stride=1, padding=2)
 
         self.s_ae = AutoYencoder(s1_encod_config, s2_encod_config, decoder_config)
 
@@ -886,7 +890,22 @@ class Rhodium(Atom):
         # print("IN LAI SHAPE", in_lai.shape)
         # print("MASK SHAPE", in_mask_lai.shape)
         # print("MASK SHAPE", in_lai.shape[-2:])
-        s2_data = torch.cat([in_lai, in_mask_lai], dim=2)
+
+        # TODO faire passer mask dans conv avant
+
+        # TODO faire passer mask dans conv avant
+
+        in_mask_lai = rearrange(in_mask_lai, "batch t c h w -> (batch t) c h w")
+        mask_lai_embed = self.conv_lai_mask(in_mask_lai)  # (batch*t, c, h, w)
+        mask_lai_embed = rearrange(mask_lai_embed, "(batch t) c h w -> batch t c h w",
+                                   batch=batch_size)
+
+        # print("mask_lai_embed SHAPE", mask_lai_embed.shape)
+
+        s2_data = torch.cat([in_lai, mask_lai_embed], dim=2)
+
+        # test_s2_data = torch.cat([in_lai, in_mask_lai], dim=2)
+        # print("test s2_data", test_s2_data.shape)
 
         # print("IN LAI SHAPE", in_lai.shape)
         # print("IN in_mask_lai SHAPE", in_mask_lai.shape)
@@ -907,10 +926,6 @@ class Rhodium(Atom):
         # print("DDDDDDDD", s_embed.shape)
 
         # Time steps information embedding
-        # in_mask_lai = rearrange(in_mask_lai, "batch t c h w -> (batch t) c h w")
-        # mask_lai_embed = self.conv_lai_mask(in_mask_lai)  # (batch*t, c, h, w)
-        # mask_lai_embed = rearrange(mask_lai_embed, "(batch t) c h w -> batch (t c) h w",
-        #                            batch=batch_size)
 
         # s1_input = rearrange(s_embed[:, :2], "batch t c h w -> batch (t c) h w")
         # in_lai = torch.squeeze(in_lai, dim=2)  # (batch, c, h, w)
