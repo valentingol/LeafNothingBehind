@@ -33,3 +33,8 @@ pip install -e .
 - Vanadium
 
 ![vanadium](./assets/vanadium_archi.svg)
+
+## Dataspliter usage
+
+python lnb/data/splitter.py --from_cloudy_percentage=X
+X -> integer
