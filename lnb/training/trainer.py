@@ -1,8 +1,7 @@
+"""Generic trainer for LNB models."""
 import argparse
-import os
-from time import time
-from typing import Dict, List, Tuple, Callable
 from collections import defaultdict
+from typing import Callable, Dict, Optional, Tuple
 
 import numpy as np
 import torch
@@ -13,18 +12,19 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm, trange
 
 import wandb
-from lnb.architecture.models import Strontium
 from lnb.architecture.models import Scandium
 from lnb.data.dataset import LNBDataset
-from lnb.training.log_utils import get_time_log
 from lnb.training.metrics import mse_loss
 
 ParsedDataType = Dict[str, Dict[str, torch.Tensor]]
 
 
 def mask_fn(img_mask: np.ndarray) -> np.ndarray:
-    """Transform an S2 mask (values between 1 and 9) to float32.
-    Channels are last dimension."""
+    """Mask processing function.
+
+    Transform an S2 mask (values between 1 and 9) to float32.
+    Channels are last dimension.
+    """
     metric_mask = np.where(img_mask < 2, 0.0, 1.0)
     metric_mask = np.where(img_mask > 6, 0.0, metric_mask)
     mask_2 = np.where(img_mask == 2, 1.0, 0.0)
@@ -36,15 +36,17 @@ def mask_fn(img_mask: np.ndarray) -> np.ndarray:
 
 
 def parse_data_device(data: torch.Tensor, device: torch.device) -> ParsedDataType:
-    """Parse data from dataloader and put it on device."""
-    # Parse data
-    # Data dims: (batch, time, channels, h, w)
-    # Channels:
-    #   0: LAI
-    #   1: LAI mask (metric)
-    #   2 -> -3: LAI mask (other channels)
-    #   -2: VV
-    #   -1: VH
+    """Parse data from dataloader and put it on device.
+
+    Parse data
+    Data dims: (batch, time, channels, h, w)
+    Channels:
+      0: LAI
+      1: LAI mask (metric)
+      2 -> -3: LAI mask (other channels)
+      -2: VV
+      -1: VH
+    """
     data, glob = data
     in_lai = data[:, :2, 0:1].to(device)
     lai_target = data[:, 2, 0:1].to(device)
@@ -65,13 +67,15 @@ def parse_data_device(data: torch.Tensor, device: torch.device) -> ParsedDataTyp
 
 
 class Trainer:
+    """Base trainer class."""
+
     def __init__(
         self,
         model: nn.Module,
         dataloaders: Dict[str, DataLoader],
         process_func: Callable,
         device: torch.device,
-        config: Dict = defaultdict(),
+        config: Optional[Dict] = None,
     ) -> None:
         self.model = model.to(device)
         self.dataloders = dataloaders
@@ -86,44 +90,47 @@ class Trainer:
     ) -> Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler._LRScheduler]:
         """Configure the optimizers and the learning rate schedulers.
 
-        Returns:
-            Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler._LRScheduler]: Optimizer and scheduler
+        Returns
+        -------
+        Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler._LRScheduler]
+            Optimizer and scheduler
         """
-
         train_config = self.config["train"]
 
         n_epochs = train_config["n_epochs"]
         lr_decay = train_config["learning_rate_decay"]
         lr_n_mult = train_config["learning_rate_n_mult"]
 
-        milestones = [int(epoch) for epoch in np.linspace(0, n_epochs, lr_n_mult + 1)][
-            1:
-        ]
+        milestones = [
+            int(epoch) for epoch in np.linspace(0, n_epochs, lr_n_mult + 1)
+        ][1:]
 
         optimizer = torch.optim.Adam(
-            self.model.parameters(), lr=train_config["learning_rate"]
+            self.model.parameters(), lr=train_config["learning_rate"],
         )
         scheduler = MultiStepLR(optimizer, milestones=milestones, gamma=lr_decay)
         return optimizer, scheduler
 
-    def train_step(self, data, loss_names: list) -> Tuple:
-        """Train step.
+    def train_step(self, parsed_data: ParsedDataType, loss_names: list) -> Tuple:
+        """Make a train step.
 
-        Args:
-            data (): Data
-            loss_names (list): Loss names
+        Parameters
+        ----------
+        data ParsedDataType:
+            Parsed data. Contains 'input_data' and 'target_data' keys.
+        loss_names (list): Loss names
 
-        Returns:
+        Returns
+        -------
             Tuple: Losses
         """
-
         self.optimizer.zero_grad()
-        predictions = self.model(**data["input_data"])
+        predictions = self.model(**parsed_data["input_data"])
         losses = [
-            mse_loss(lai_pred=pred, **data["target_data"])
+            mse_loss(lai_pred=pred, **parsed_data["target_data"])
             for pred in predictions
             if pred is not None
-            and all([pred.shape == d.shape for d in data["target_data"].values()])
+            and all(pred.shape == d.shape for d in parsed_data["target_data"].values())
         ]
 
         losses[0].backward()
@@ -135,14 +142,18 @@ class Trainer:
             if loss is not None
         }
 
-    def validation_step(self, data, loss_names: list) -> Tuple:
-        """Validation step.
+    def validation_step(self, data: ParsedDataType, loss_names: list) -> Tuple:
+        """Make a validation step.
 
-        Args:
-            data (): Data
-            loss_names (list): Loss names
+        Parameters
+        ----------
+        data : ParsedDataType
+            Parsed data. Contains 'input_data' and 'target_data' keys.
+        loss_names : list
+            Loss names
 
-        Returns:
+        Returns
+        -------
             Tuple: Losses
         """
         with torch.no_grad():
@@ -151,7 +162,7 @@ class Trainer:
                 mse_loss(lai_pred=pred, **data["target_data"])
                 for pred in predictions
                 if pred is not None
-                and all([pred.shape == d.shape for d in data["target_data"].values()])
+                and all(pred.shape == d.shape for d in data["target_data"].values())
             ]
 
         return {
@@ -161,7 +172,12 @@ class Trainer:
         }
 
     def general_step(
-        self, name: str, dataloader: DataLoader, progress_bar, config: Dict, subname: str = None
+        self,
+        name: str,
+        dataloader: DataLoader,
+        progress_bar,
+        config: Dict,
+        subname: str = None,
     ) -> None:
         """General step which can be used for train step and val steps.
 
@@ -171,7 +187,8 @@ class Trainer:
             progress_bar (_type_): _description_
             config (Dict): _description_
 
-        Returns:
+        Returns
+        -------
             _type_: _description_
         """
         all_losses = defaultdict(list)
@@ -186,10 +203,11 @@ class Trainer:
         for idx_batch, data in pbar:
             processed_data = self.process_func(data, self.device)
             losses = getattr(self, f"{name}_step")(
-                processed_data, loss_names=["mse_loss"]
+                processed_data, loss_names=["mse_loss"],
             )
 
-            if subname: name = f"{name}/{subname}"
+            if subname:
+                name = f"{name}/{subname}"
 
             for loss_name, loss_value in losses.items():
                 loss_value = loss_value.detach().cpu().numpy()
@@ -202,7 +220,7 @@ class Trainer:
                 {
                     f"{name}/{loss_name}": loss_value
                     for loss_name, loss_value in losses.items()
-                }
+                },
             )
 
         # Wandb log mean losses
@@ -220,7 +238,7 @@ class Trainer:
             {
                 f"{name}/mean_{loss_name}": loss_value
                 for loss_name, loss_value in all_mean_losses.items()
-            }
+            },
         )
 
         return all_mean_losses, all_std_losses, all_losses
@@ -230,8 +248,8 @@ class Trainer:
         train_config = self.config["train"]
         n_epochs = train_config["n_epochs"]
 
-        all_mean_losses = defaultdict(list)
-        all_std_losses = defaultdict(list)
+        defaultdict(list)
+        defaultdict(list)
 
         epoch_pbar = trange(n_epochs, desc="Epochs")
         for epoch in epoch_pbar:
@@ -240,7 +258,7 @@ class Trainer:
             # Train
             self.model.train()
             train_mean_losses, train_std_losses, all_losses = self.general_step(
-                "train", self.dataloders["train"], epoch_pbar, train_config
+                "train", self.dataloders["train"], epoch_pbar, train_config,
             )
 
             # Validation
@@ -248,7 +266,11 @@ class Trainer:
             for val_name, val_dataloader in self.dataloders["validation"].items():
                 torch.cuda.empty_cache()
                 train_mean_losses, train_std_losses, all_losses = self.general_step(
-                    "validation", val_dataloader, epoch_pbar, None, subname=val_name.split("_")[1]
+                    "validation",
+                    val_dataloader,
+                    epoch_pbar,
+                    None,
+                    subname=val_name.split("_")[1],
                 )
 
             torch.cuda.empty_cache()
@@ -261,38 +283,38 @@ class Trainer:
                 )
                 print(
                     f"Model saved to ../models/{self.model.__name__.lower()}/{run_id}/"
-                    f"{run_id}_ep{epoch + 1}.pth"
+                    f"{run_id}_ep{epoch + 1}.pth",
                 )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--config_path", type=str, required=False, default="config/scandium/base.yaml"
+        "--config_path", type=str, required=False, default="config/scandium/base.yaml",
     )
     args = parser.parse_args()
 
     with open(args.config_path, encoding="utf-8") as cfg_file:
         config = yaml.safe_load(cfg_file)
 
-    ########################### Device ###########################
+    # Device
 
     device = torch.device(
         "cuda"
         if torch.cuda.is_available()
         else "mps"
         if torch.backends.mps.is_built()
-        else "cpu"
+        else "cpu",
     )
 
-    ########################### Model ###########################
+    # Model
 
     model = Scandium(config["model"])
 
-    ########################### Dataloaders ###########################
+    # Data loaders
 
     train_dataloader = DataLoader(
-        LNBDataset(mask_fn=mask_fn, **config["data"]), **config["dataloader"]
+        LNBDataset(mask_fn=mask_fn, **config["data"]), **config["dataloader"],
     )
 
     # Build validation data loaders
@@ -304,11 +326,11 @@ if __name__ == "__main__":
     val_loader_config["batch_size"] = 16  # Hard-coded batch size for validation
 
     val_dataloaders = {}
-    for name in ["generalisation", "regular", "mask_cloudy
+    for name in ["generalisation", "regular", "mask_cloudy"]:
         val_data_config["name"] = name
         val_data_config["csv_name"] = f"validation_{name}.csv"
         val_dataloader = DataLoader(
-            LNBDataset(mask_fn=mask_fn, **val_data_config), **val_loader_config
+            LNBDataset(mask_fn=mask_fn, **val_data_config), **val_loader_config,
         )
         val_dataloaders["validation_" + name] = val_dataloader
 
@@ -317,13 +339,13 @@ if __name__ == "__main__":
         "validation": val_dataloaders,
     }
 
-    ########################### Train ###########################
+    # Train
 
     run_id = np.random.randint(1000000)
     config["run_id"] = run_id
 
     wandb.init(
-        project="lnb", entity="leaf_nothing_behind", group="strontium", config=config
+        project="lnb", entity="leaf_nothing_behind", group="strontium", config=config,
     )
 
     trainer = Trainer(

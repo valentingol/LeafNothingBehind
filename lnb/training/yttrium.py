@@ -1,27 +1,22 @@
+"""Training functions for Yttrium."""
 import argparse
-import os
-from time import time
-from typing import Dict, List, Tuple, Callable
-from collections import defaultdict
+from typing import Dict
 
 import numpy as np
 import torch
 import yaml
-from torch import nn
-from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
-from tqdm import tqdm, trange
 
 import wandb
 from lnb.architecture.models import Yttrium
 from lnb.data.dataset import LNBDataset
-from lnb.training.log_utils import get_time_log
-from lnb.training.metrics import mse_loss
-from lnb.training.trainer import Trainer, parse_data_device, mask_fn
+from lnb.training.trainer import Trainer, mask_fn
 
 ParsedDataType = Dict[str, Dict[str, torch.Tensor]]
 
+
 def parse_data_device(data: torch.Tensor, device: torch.device) -> ParsedDataType:
+    """Parse data and put it in device."""
     data, glob, weather_vec = data
     in_lai = data[:, :2, 0:1].to(device)
     lai_target = data[:, 2, 0:1].to(device)
@@ -41,9 +36,6 @@ def parse_data_device(data: torch.Tensor, device: torch.device) -> ParsedDataTyp
     }
     return parsed_data
 
-class YttriumTrainer(Trainer):
-    pass
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -55,7 +47,7 @@ if __name__ == "__main__":
     with open(args.config_path, encoding="utf-8") as cfg_file:
         config = yaml.safe_load(cfg_file)
 
-    ########################### Device ###########################
+    # Device
 
     device = torch.device(
         "cuda"
@@ -65,14 +57,15 @@ if __name__ == "__main__":
         else "cpu"
     )
 
-    ########################### Model ###########################
+    # Model
 
     model = Yttrium(config["model"])
 
-    ########################### Dataloaders ###########################
+    # Data loaders
 
     train_dataloader = DataLoader(
-        LNBDataset(mask_fn=mask_fn, use_weather=True, **config["data"]), **config["dataloader"]
+        LNBDataset(mask_fn=mask_fn, use_weather=True, **config["data"]),
+        **config["dataloader"],
     )
 
     # Build validation data loaders
@@ -84,11 +77,12 @@ if __name__ == "__main__":
     val_loader_config["batch_size"] = 16  # Hard-coded batch size for validation
 
     val_dataloaders = {}
-    for name in ["generalisation", "regular", "mask_cloudy:
+    for name in ["generalisation", "regular", "mask_cloudy"]:
         val_data_config["name"] = name
         val_data_config["csv_name"] = f"validation_{name}.csv"
         val_dataloader = DataLoader(
-            LNBDataset(mask_fn=mask_fn, use_weather=True, **val_data_config), **val_loader_config
+            LNBDataset(mask_fn=mask_fn, use_weather=True, **val_data_config),
+            **val_loader_config,
         )
         val_dataloaders["validation_" + name] = val_dataloader
 
@@ -97,7 +91,7 @@ if __name__ == "__main__":
         "validation": val_dataloaders,
     }
 
-    ########################### Train ###########################
+    # Train
 
     run_id = np.random.randint(1000000)
     config["run_id"] = run_id
@@ -106,7 +100,7 @@ if __name__ == "__main__":
         project="lnb", entity="leaf_nothing_behind", group="yttrium", config=config
     )
 
-    trainer = YttriumTrainer(
+    trainer = Trainer(
         model=model,
         dataloaders=dataloaders,
         config=config,
