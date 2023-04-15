@@ -14,7 +14,7 @@ from torchvision import transforms
 from lnb.data import meteo
 
 
-def normalize_fn(data):
+def normalize_fn(data: np.ndarray) -> np.ndarray:
     """Normalize numpy data under the format [LAI, LAI mask, VV, VH]."""
     # LAI
     data[..., 0] /= 5.0  # in [0, 2] most of the time
@@ -67,6 +67,8 @@ class LNBDataset(Dataset):
     time_info : torch.Tensor
         Tensor two floats between 0 and 1 continuous and periodic
         containing time information.
+    use_weather : torch.Tensor, optional
+        Tensor containing weather information.
     """
 
     def __init__(self, dataset_path: str, csv_name: str,
@@ -124,14 +126,15 @@ class LNBDataset(Dataset):
 
             # Get time information
             time_info = self._name_to_time_info(self.series_df['0'][idx])
-            time_info = np.expand_dims(time_info, axis=(1, 2))
 
             # Get weather data
             if self.use_weather:
-                weather_data = self._get_weather_vector(idx)
+                weather_data = self._get_weather_vector(self.series_df.iloc[idx])
 
                 # Concatenate time info and weather data
-                weather_data = np.concatenate([time_info, weather_data], axis=0)
+                time_info_unsq = torch.unsqueeze(time_info, dim=1)
+                time_info_unsq = torch.unsqueeze(time_info_unsq, dim=1)
+                weather_data = torch.cat([time_info_unsq, weather_data], dim=0)
 
             for tstep in ['0', '1', '2']:
                 mask_lai = self.mask_fn(tif.imread(
@@ -192,11 +195,20 @@ class LNBDataset(Dataset):
             except RuntimeError:  # When the crop is outbounded -> take the center
                 data = grid_r[:, :, 128:384, 128:384]
 
+            if self.use_weather:
+                weather_data = self._get_weather_vector(
+                    self.grid_df.loc[idx_grid, ['uleft0', 'uleft1', 'uleft2']]
+                )
+
+                # Concatenate time info and weather data
+                time_info_unsq = torch.unsqueeze(time_info, dim=1)
+                time_info_unsq = torch.unsqueeze(time_info_unsq, dim=1)
+                weather_data = torch.cat([time_info_unsq, weather_data], dim=0)
         if self.use_weather:
             return data, time_info, weather_data
         return data, time_info
 
-    def _get_2by2_grid(self, idx: int):
+    def _get_2by2_grid(self, idx: int) -> torch.Tensor:
         """Get a 2*2 grid."""
         grid_np = np.load(osp.join(self.grid_path,
                                    f'grid_{idx}.npy'))  # shape (3, 512, 512, c)
@@ -212,33 +224,31 @@ class LNBDataset(Dataset):
         grid = rearrange(grid, 'time H W c -> time c H W')
         return grid  # shape (3, c, 512, 512)
 
-    def _get_weather_vector(self, idx):
+    def _get_weather_vector(self, serie: pd.Series) -> torch.Tensor:
+        """Get weather data for a serie of 3 file names."""
         # Get weather data
-        location = meteo.decompose(self.series_df.iloc[idx])[0]
+        location = meteo.decompose(serie)[0]
         weather = self.weather_df[self.weather_df['city'] == location]
-
         # Reset index
         weather = weather.reset_index(drop=True)
         # Limit weather data to the 5 last entries
         weather = weather.iloc[-5:]
-
         # Convert weather to numpy array and remove city and date columns
         weather = weather.drop(columns=['city', 'date'])
         weather = weather.to_numpy()
-
         # Convert shape (5, 11) to (55, 1, 1)
         weather = weather.reshape(-1)
         weather = np.expand_dims(weather, axis=(1, 2))
-
+        weather = torch.from_numpy(weather).float()
         return weather
 
-    def _name_to_time_info(self, filename: str):
+    def _name_to_time_info(self, filename: str) -> torch.Tensor:
         """Parse the name of the file to get the period of time in the year
         and transform it in two shifted periodic, linear and continuous values
         between -1 and 1. The first value describe the summer-winter axis and
         the second the spring-autumn axis.
         """
-        def periodlin_map(linear_date: float):
+        def periodlin_map(linear_date: float) -> float:
             """Map a date in [0, 1] to a value in [-1, 1] with a
             periodic linear pattern."""
             sign = - (int((linear_date // 0.5) % 2) * 2 - 1)
@@ -254,14 +264,30 @@ class LNBDataset(Dataset):
 
 
 if __name__ == '__main__':
-    # Test the dataset and explore some data
+    # Test the dataset and explore some data (case without weather)
     dataset = LNBDataset(dataset_path='../data', csv_name='train_regular.csv',
-                         grid_augmentation=True)
+                         grid_augmentation=False, use_weather=False)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=16, shuffle=True,
                                              num_workers=6, prefetch_factor=2)
     for (data, time_info) in dataloader:
         print('time info:')
         print(time_info)
+        print('data:')
+        print('- shape:', data.shape)
+        print('- ex:', data[0, 0, :, :5, :5])
+        break
+    # Test the dataset and explore some data (case with weather)
+    dataset = LNBDataset(dataset_path='../data', csv_name='train_regular.csv',
+                         grid_augmentation=False, use_weather=True)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=16, shuffle=True,
+                                             num_workers=6, prefetch_factor=2)
+    for (data, time_info, weather) in dataloader:
+        print('time info:')
+        print(time_info)
+        print('weather:')
+        print('- shape:', weather.shape)
+        print('- min:', weather.min())
+        print('- max:', weather.max())
         print('data:')
         print('- shape:', data.shape)
         print('- ex:', data[0, 0, :, :5, :5])
