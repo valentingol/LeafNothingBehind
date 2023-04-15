@@ -1,45 +1,40 @@
-from typing import Union, Callable
-from datetime import datetime
-import multiprocessing
+"""Weather data extraction."""
 import argparse
+from datetime import datetime
+from typing import Tuple, Union
 
-import pandas as pd
 import numpy as np
-from tqdm import tqdm
-
-from meteostat import Daily, Stations
+import pandas as pd
 from geopy.geocoders import Nominatim
+from meteostat import Daily, Stations
+from tqdm import tqdm
 
 
 def retrieve_weather(
     geolocator: Nominatim,
     city: str,
-    start_date: Union[str, datetime.date],
-    end_date: Union[str, datetime.date] = None,
+    start_date: Union[str, datetime.date],  # type: ignore
+    end_date: Union[str, datetime.date] = None,  # type: ignore
     time_format: str = "%Y-%m-%d",
-) -> dict:
+) -> pd.Series:
+    """Get weather data for a city and a date range."""
     if geolocator is None:
         geolocator = Nominatim(user_agent="leaf-nothing-behind")
 
     if end_date is None:
         end_date = start_date
-    if type(start_date) == str:
+    if isinstance(start_date, str):
         start_date = datetime.strptime(start_date, time_format or "%Y-%m-%d")
-    if type(end_date) == str:
+    if isinstance(start_date, str):
         end_date = datetime.strptime(end_date, time_format or "%Y-%m-%d")
 
     # Use the geolocator to get the location coordinates of the city
     location = geolocator.geocode(city)
 
-    # Print the latitude and longitude of the city
-    # print(f"Location: ({city}) {location.address}")
-    # print(f"Latitude: {location.latitude}")
-    # print(f"Longitude: {location.longitude}")
-
     # Get daily data from start to end date
-    km = 1000
+    kilometers = 1000
     stations = Stations()
-    stations = stations.nearby(location.latitude, location.longitude, 100*km)
+    stations = stations.nearby(location.latitude, location.longitude, 100 * kilometers)
     print(f"Stations found: {stations.count()}")
 
     stations = stations.fetch()
@@ -60,47 +55,32 @@ def retrieve_weather(
     return data
 
 
-def parallelize(series: pd.Series, func: Callable):
-    # Define the number of worker processes to use
-    num_processes = multiprocessing.cpu_count()
-
-    print(f"Using {num_processes} processes...")
-
-    # Split the series dataframe into chunks based on the number of worker processes
-    series_chunks = np.array_split(series, num_processes)
-
-    # Create a pool of worker processes and map the retrieve_partial function to the series chunks
-    with multiprocessing.Pool(num_processes) as pool:
-        results = pool.map(retrieve_partial, series_chunks)
-
-    # Concatenate the results into a single dataframe
-    data = pd.concat(results, axis=0)
-
-    return data
-
-
-def decompose(x):
-    x = x[0]
-    splitted = x.split("_")
+def decompose(file_name: str) -> Tuple[str, str, str]:
+    """Parse city, start date and end date from input file name."""
+    file_name = file_name[0]
+    splitted = file_name.split("_")
     city = splitted[0] + " " + splitted[1]
     start_date = splitted[2]
     end_date = splitted[3].rsplit("-", 4)[0]
     return city, start_date, end_date
 
 
-def extract(csv_path: str):
-    df = pd.read_csv(csv_path)
-    df["city"], df["start_date"], df["end_date"] = zip(*df.apply(decompose, axis=1))
+def extract(csv_path: str) -> None:
+    """Extract weather data from csv file and save to csv."""
+    dataf = pd.read_csv(csv_path)
+    dataf["city"], dataf["start_date"], dataf["end_date"] = zip(
+        *dataf.apply(decompose, axis=1),
+    )
     # Remove all columns except city, start_date, end_date
-    df = df[["city", "start_date", "end_date"]]
+    dataf = dataf[["city", "start_date", "end_date"]]
     # Remove duplicates
-    df = df.drop_duplicates()
+    dataf = dataf.drop_duplicates()
 
     meteo_df = pd.DataFrame()
 
     # Create a geolocator object
     geolocator = Nominatim(user_agent="leaf-nothing-behind")
-    for index, row in tqdm(df.iterrows(), total=len(df)):
+    for _, row in tqdm(dataf.iterrows(), total=len(dataf)):
         city = row["city"]
         start_date = row["start_date"]
         end_date = row["end_date"]
@@ -124,97 +104,58 @@ def extract(csv_path: str):
                     "pressure": 0,
                     "sun": 0,
                 },
-                ignore_index=True
+                ignore_index=True,
             )
             print("Skipping empty data...")
             continue
 
-        for idx, rw in data.iterrows():
+        for idx, row in data.iterrows():
             # Replace NaN values with 0
-            rw = rw.fillna(0)
+            row = row.fillna(0)
             meteo_df = meteo_df.append(
                 {
                     "city": city,
                     "date": idx,
-                    "temp_avg": rw["tavg"],
-                    "temp_min": rw["tmin"],
-                    "temp_max": rw["tmax"],
-                    "precipitation": rw["prcp"],
-                    "snow": rw["snow"],
-                    "wind": rw["wspd"],
-                    "wind_dir": rw["wdir"],
-                    "wind_speed": rw["wspd"],
-                    "wind_gust": rw["wpgt"],
-                    "pressure": rw["pres"],
-                    "sun": rw["tsun"],
+                    "temp_avg": row["tavg"],
+                    "temp_min": row["tmin"],
+                    "temp_max": row["tmax"],
+                    "precipitation": row["prcp"],
+                    "snow": row["snow"],
+                    "wind": row["wspd"],
+                    "wind_dir": row["wdir"],
+                    "wind_speed": row["wspd"],
+                    "wind_gust": row["wpgt"],
+                    "pressure": row["pres"],
+                    "sun": row["tsun"],
                 },
                 ignore_index=True,
             )
-
     # Save to csv
-    df.to_csv("..\data\meteo.csv", index=False)
-    meteo_df.to_csv("..\data\meteo_full.csv", index=False)
+    dataf.to_csv("..\\data\\meteo.csv", index=False)
+    meteo_df.to_csv("..\\data\\meteo_full.csv", index=False)
+
 
 if __name__ == "__main__":
     # Arg parser
-    args = argparse.ArgumentParser()
-    args.add_argument("--mode", type=str, default="sequential")
-    args = args.parse_args()
-
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", type=str, default="sequential")
+    args = parser.parse_args()
     # Load and process the image series dataframe
-
-    series = pd.read_csv("..\data\image_series.csv")
-    weather = pd.read_csv("..\data\meteo_full.csv")
-
-
+    series = pd.read_csv("../data/image_series.csv")
+    weather = pd.read_csv("../data/meteo_full.csv")
     # Get weather data
     location = decompose(series.iloc[45])[0]
-    weather = weather[weather['city'] == location]
-
+    weather = weather[weather["city"] == location]
     # Reset index
     weather = weather.reset_index(drop=True)
     # Limit weather data to the 5 last entries
     weather = weather.iloc[-5:]
-
     print(weather)
-
     # Convert weather to numpy array and remove city and date columns
-    weather = weather.drop(columns=['city', 'date'])
+    weather = weather.drop(columns=["city", "date"])
     weather = weather.to_numpy()
-
     print(weather.shape)
-
     # Convert shape from (5, 11) to (55,)
     weather = weather.reshape(-1)
     weather = np.expand_dims(weather, axis=(1, 2))
-
     print(weather.shape)
-
-    # extract("..\data\image_series.csv")
-    # series["city"], series["start_date"], series["end_date"] = zip(
-    #     *series.apply(decompose, axis=1)
-    # )
-
-    # # Create a geolocator object
-    # geolocator = Nominatim(user_agent="leaf-nothing-behind")
-
-    # # Create a partial function to pass geolocator and time_format parameters
-    # retrieve_partial = partial(
-    #     retrieve_weather, geolocator=geolocator, time_format="%Y-%m-%d"
-    # )
-
-    # # Retrieve weather data
-    # if args.mode == "parallel":
-    #     data = parallelize(series[:100], retrieve_partial)
-    # elif args.mode == "sequential":
-    #     data = pd.DataFrame()
-    #     for index, row in tqdm(series.iterrows()):
-    #         if index > 2:
-    #             break
-    #         city = row["city"]
-    #         start_date = row["start_date"]
-    #         end_date = row["end_date"]
-    #         data = data.append(retrieve_weather(geolocator, city, start_date, end_date))
-
-    # # Save the data to a CSV file
-    # data.to_csv("..\data\weather.csv")
