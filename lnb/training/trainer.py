@@ -1,8 +1,7 @@
+"""Generic trainer for LNB models."""
 import argparse
-import os
-from time import time
-from typing import Dict, List, Tuple, Callable
 from collections import defaultdict
+from typing import Callable, Dict, Tuple
 
 import numpy as np
 import torch
@@ -13,10 +12,8 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm, trange
 
 import wandb
-from lnb.architecture.models import Strontium
 from lnb.architecture.models import Scandium
 from lnb.data.dataset import LNBDataset
-from lnb.training.log_utils import get_time_log
 from lnb.training.metrics import mse_loss
 
 ParsedDataType = Dict[str, Dict[str, torch.Tensor]]
@@ -87,7 +84,8 @@ class Trainer:
         """Configure the optimizers and the learning rate schedulers.
 
         Returns:
-            Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler._LRScheduler]: Optimizer and scheduler
+            Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler._LRScheduler]
+                Optimizer and scheduler
         """
 
         train_config = self.config["train"]
@@ -161,7 +159,12 @@ class Trainer:
         }
 
     def general_step(
-        self, name: str, dataloader: DataLoader, progress_bar, config: Dict, subname: str = None
+        self,
+        name: str,
+        dataloader: DataLoader,
+        progress_bar,
+        config: Dict,
+        subname: str = None,
     ) -> None:
         """General step which can be used for train step and val steps.
 
@@ -189,7 +192,8 @@ class Trainer:
                 processed_data, loss_names=["mse_loss"]
             )
 
-            if subname: name = f"{name}/{subname}"
+            if subname:
+                name = f"{name}/{subname}"
 
             for loss_name, loss_value in losses.items():
                 loss_value = loss_value.detach().cpu().numpy()
@@ -230,8 +234,8 @@ class Trainer:
         train_config = self.config["train"]
         n_epochs = train_config["n_epochs"]
 
-        all_mean_losses = defaultdict(list)
-        all_std_losses = defaultdict(list)
+        defaultdict(list)
+        defaultdict(list)
 
         epoch_pbar = trange(n_epochs, desc="Epochs")
         for epoch in epoch_pbar:
@@ -248,7 +252,11 @@ class Trainer:
             for val_name, val_dataloader in self.dataloders["validation"].items():
                 torch.cuda.empty_cache()
                 train_mean_losses, train_std_losses, all_losses = self.general_step(
-                    "validation", val_dataloader, epoch_pbar, None, subname=val_name.split("_")[1]
+                    "validation",
+                    val_dataloader,
+                    epoch_pbar,
+                    None,
+                    subname=val_name.split("_")[1],
                 )
 
             torch.cuda.empty_cache()
@@ -275,7 +283,7 @@ if __name__ == "__main__":
     with open(args.config_path, encoding="utf-8") as cfg_file:
         config = yaml.safe_load(cfg_file)
 
-    ########################### Device ###########################
+    # Device
 
     device = torch.device(
         "cuda"
@@ -285,11 +293,11 @@ if __name__ == "__main__":
         else "cpu"
     )
 
-    ########################### Model ###########################
+    # Model
 
     model = Scandium(config["model"])
 
-    ########################### Dataloaders ###########################
+    # Data loaders
 
     train_dataloader = DataLoader(
         LNBDataset(mask_fn=mask_fn, **config["data"]), **config["dataloader"]
@@ -304,7 +312,7 @@ if __name__ == "__main__":
     val_loader_config["batch_size"] = 16  # Hard-coded batch size for validation
 
     val_dataloaders = {}
-    for name in ["generalisation", "regular", "mask_cloudy
+    for name in ["generalisation", "regular", "mask_cloudy"]:
         val_data_config["name"] = name
         val_data_config["csv_name"] = f"validation_{name}.csv"
         val_dataloader = DataLoader(
@@ -317,7 +325,7 @@ if __name__ == "__main__":
         "validation": val_dataloaders,
     }
 
-    ########################### Train ###########################
+    # Train
 
     run_id = np.random.randint(1000000)
     config["run_id"] = run_id
