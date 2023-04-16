@@ -43,7 +43,7 @@ class BaseCloudModel(nn.Module):
             clouds_recoverable = torch.cat([
                 torch.unsqueeze(clouds[:, 0] * clouds_xor, dim=1),
                 torch.unsqueeze(clouds[:, 1] * clouds_xor, dim=1),
-            ])  # (batch, 2, 256, 256)
+            ], dim=1)  # (batch, 2, 256, 256)
             idx_recoverable = torch.where(
                 torch.sum(clouds_recoverable, dim=(2, 3)) > cloud_prop * 256**2,
             )
@@ -114,13 +114,32 @@ class HumanCloudModel(BaseCloudModel):
         """Process cloud on batch."""
         with torch.no_grad():
             # Normalize lai_other like lai_cloud
-            min_cloud = torch.min(lai_cloud, dim=(2, 3), keepdim=True)[0]
-            max_cloud = torch.max(lai_cloud, dim=(2, 3), keepdim=True)[0]
-            min_other = torch.min(lai_other, dim=(2, 3), keepdim=True)[0]
-            max_other = torch.max(lai_other, dim=(2, 3), keepdim=True)[0]
-            lai_other_norm = (lai_other - min_other) / (max_other - min_other + 1e-6)
-            lai_other = lai_other_norm * (max_cloud - min_cloud + 1e-6) + min_cloud
+            cloud_mean = torch.mean(lai_cloud, dim=(2, 3), keepdim=True)
+            cloud_std = torch.std(lai_cloud, dim=(2, 3), keepdim=True)
+            other_mean = torch.mean(lai_other, dim=(2, 3), keepdim=True)
+            other_std = torch.std(lai_other, dim=(2, 3), keepdim=True)
+            lai_other = (lai_other - other_mean) / (other_std + 1e-6)
+            lai_other = lai_other * cloud_std + cloud_mean
+
             out_lai = (mask_cloud[:, 0:1] * lai_cloud
                        + (1 - mask_cloud[:, 0:1]) * lai_other)
             out_mask = mask_cloud
         return out_lai, out_mask
+
+
+if __name__ == '__main__':
+    class BaseModel(nn.Module):
+        """Mock base model."""
+
+        # pylint: disable=unused-argument
+        def forward(self, *args: Tuple) -> torch.Tensor:  # noqa
+            """Forward pass."""
+            return torch.empty(0)
+
+    base_model = BaseModel()
+    model = HumanCloudModel(base_model=base_model)  # type: ignore
+    s1_data = torch.rand(8, 3, 2, 256, 256)
+    in_lai = torch.rand(8, 2, 1, 256, 256)
+    in_mask_lai = torch.randint(0, 48, (8, 2, 6, 256, 256))
+    glob = torch.rand(8, 2)
+    model(s1_data, in_lai, in_mask_lai, glob)
