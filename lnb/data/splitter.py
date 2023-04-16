@@ -190,7 +190,8 @@ def valid_datas_arround_missing_datas(
     for _ in range(16):
         for data_index in missing_data_indexes:
 
-            if (number_of_data_for_valtest_for_a_grid < expected_grid_validation_test_size):
+            if (number_of_data_for_valtest_for_a_grid <
+                    expected_grid_validation_test_size):
                 # Perform a vertical and horizontal cross check
                 # to get the valid data around the missing data
                 if data_index[0] < 32:
@@ -202,7 +203,8 @@ def valid_datas_arround_missing_datas(
                                                  data_index[0] + 1, data_index[1]) and number_of_data_for_valtest_for_a_grid < expected_grid_validation_test_size:
                             number_of_data_for_valtest_for_a_grid += 1
                             continue
-            if (number_of_data_for_valtest_for_a_grid < expected_grid_validation_test_size):
+            if (number_of_data_for_valtest_for_a_grid <
+                    expected_grid_validation_test_size):
                 if data_index[0] > 0:
                     if grid[data_index[0] - 1, data_index[1]] == 1:
                         if valid_datas_index[data_index[0] - 1][data_index[1]] == 0:
@@ -212,7 +214,8 @@ def valid_datas_arround_missing_datas(
                                                  - 1, data_index[1]) and number_of_data_for_valtest_for_a_grid < expected_grid_validation_test_size:
                             number_of_data_for_valtest_for_a_grid += 1
                             continue
-            if (number_of_data_for_valtest_for_a_grid < expected_grid_validation_test_size):
+            if (number_of_data_for_valtest_for_a_grid <
+                    expected_grid_validation_test_size):
                 if data_index[1] < 32:
                     if grid[data_index[0], data_index[1] + 1] == 1:
                         if valid_datas_index[data_index[0]][data_index[1] + 1] == 0:
@@ -222,7 +225,8 @@ def valid_datas_arround_missing_datas(
                                                  data_index[0], data_index[1] + 1) and number_of_data_for_valtest_for_a_grid < expected_grid_validation_test_size:
                             number_of_data_for_valtest_for_a_grid += 1
                             continue
-            if (number_of_data_for_valtest_for_a_grid < expected_grid_validation_test_size):
+            if (number_of_data_for_valtest_for_a_grid <
+                    expected_grid_validation_test_size):
                 if data_index[1] > 0:
                     if grid[data_index[0], data_index[1] - 1] == 1:
                         if valid_datas_index[data_index[0]][data_index[1] - 1] == 0:
@@ -235,7 +239,8 @@ def valid_datas_arround_missing_datas(
 
                 # Perform a diagonal cross to get the valid data
                 # around the missing data
-            if (number_of_data_for_valtest_for_a_grid < expected_grid_validation_test_size):
+            if (number_of_data_for_valtest_for_a_grid <
+                    expected_grid_validation_test_size):
                 if data_index[0] < 32 and data_index[1] > 0:
                     if grid[data_index[0] + 1, data_index[1] - 1] == 1:
                         if valid_datas_index[data_index[0] + 1][data_index[1] - 1] == 0:
@@ -248,7 +253,8 @@ def valid_datas_arround_missing_datas(
 
                             number_of_data_for_valtest_for_a_grid += 1
                             continue
-            if (number_of_data_for_valtest_for_a_grid < expected_grid_validation_test_size):
+            if (number_of_data_for_valtest_for_a_grid <
+                    expected_grid_validation_test_size):
                 if data_index[0] > 0 and data_index[1] > 0:
                     if grid[data_index[0] - 1, data_index[1] - 1] == 1:
                         if valid_datas_index[data_index[0] - 1][data_index[1] - 1] == 0:
@@ -261,7 +267,8 @@ def valid_datas_arround_missing_datas(
 
                             number_of_data_for_valtest_for_a_grid += 1
                             continue
-            if (number_of_data_for_valtest_for_a_grid < expected_grid_validation_test_size):
+            if (number_of_data_for_valtest_for_a_grid <
+                    expected_grid_validation_test_size):
                 if data_index[1] < 32 and data_index[0] > 0:
                     if grid[data_index[0] - 1, data_index[1] + 1] == 1:
                         if valid_datas_index[data_index[0] - 1][data_index[1] + 1] == 0:
@@ -274,7 +281,8 @@ def valid_datas_arround_missing_datas(
 
                             number_of_data_for_valtest_for_a_grid += 1
                             continue
-            if (number_of_data_for_valtest_for_a_grid < expected_grid_validation_test_size):
+            if (number_of_data_for_valtest_for_a_grid <
+                    expected_grid_validation_test_size):
                 if data_index[0] < 32 and data_index[1] < 32:
                     if grid[data_index[0] + 1, data_index[1] + 1] == 1:
                         if valid_datas_index[data_index[0] + 1][data_index[1] + 1] == 0:
@@ -291,8 +299,13 @@ def valid_datas_arround_missing_datas(
     return valid_datas_index, number_of_data_for_valtest_for_a_grid
 
 
-def get_datas_arround_missing_datas(grids, expected_grids_validation_test_size):
+def get_datas_arround_missing_datas(
+        grids, validation_test_percent, grids_size):
     """Get sample data around missing data."""
+
+    expected_grids_validation_test_size, _ = val_test_proportion_for_each_grid(
+        validation_test_percent, grids_size)
+
     validation_test_data_for_each_grid = {}
     valtest_data_num_per_grid = {}
 
@@ -302,8 +315,6 @@ def get_datas_arround_missing_datas(grids, expected_grids_validation_test_size):
                                                                  dtype=np.uint)
         valtest_data_num_per_grid[grid_name] = 0
         missing_datas_indexes, missing_size = get_missing_data_indexes(grid)
-
-        print(grid_name, "has", missing_size, "missing data")
 
         (validation_test_data_for_each_grid[grid_name],
             valtest_data_num_per_grid[grid_name]) = valid_datas_arround_missing_datas(
@@ -322,59 +333,6 @@ def get_datas_arround_missing_datas(grids, expected_grids_validation_test_size):
                 expected_grids_validation_test_size[grid_name])
 
     return validation_test_data_for_each_grid, valtest_data_num_per_grid
-
-
-def split_train_val_test(validation_test_percent, data_path):
-    csv_path = osp.join(data_path, "image_series.csv")
-    series = pd.read_csv(csv_path)
-
-    grids, grids_size = grid_exploration(series)
-
-    (
-        expected_grids_validation_test_size,
-        potential_total_val_test_data_size,
-    ) = val_test_proportion_for_each_grid(validation_test_percent, grids_size)
-    (
-        real_grids_validation_test,
-        number_of_data_for_valtest_for_each_grids,
-    ) = get_datas_arround_missing_datas(grids, expected_grids_validation_test_size)
-
-    for grids_name, size in grids_size.items():
-        print("===")
-        print(grids_name)
-        print("size =", size)
-        print(
-            "expected test_val_size =", expected_grids_validation_test_size[grids_name],
-        )
-        print(
-            "real_grids_validation_test_size =",
-            number_of_data_for_valtest_for_each_grids[grids_name],
-        )
-        print("===")
-
-    print("========")
-
-    print("Based on each grid size expected total_val_test_data_size=",
-          potential_total_val_test_data_size)
-
-    real_test_val_dataset_total_size = 0
-    for _, dataset_size in number_of_data_for_valtest_for_each_grids.items():
-        real_test_val_dataset_total_size += dataset_size
-
-    print("========")
-    print("Real total_val_test_data_size =", real_test_val_dataset_total_size)
-    print("========")
-
-    train_dataset = remove_dataset_from_another(grids, real_grids_validation_test)
-
-    # train_dataset.pop("KALININGRAD_GUSEV_2018-04-07_2018-04-19")
-
-    return (
-        real_grids_validation_test,
-        real_test_val_dataset_total_size,
-        grids_size,
-        train_dataset,
-    )
 
 
 def average_absolute_differences(line, data_path):
@@ -523,14 +481,17 @@ def get_s1_differences_dataset(dataset_to_check, data_path):
     return s1_difference_dataset
 
 
-def select(selecter, help, head, row, col, train_data_set, val_dataset, test_dataset):
-    if (selecter == 1 or selecter == 0) and help == 0:
+def select(selecter, head, row, col, train_data_set, val_dataset, test_dataset, N_prop):
+    temp = selecter
+    rand = np.random.randint(0, 100)
+    if rand < 100 - N_prop:
+        selecter = 1
+
+    if (selecter == 1 or selecter == 0):
         if head not in train_data_set:
             train_data_set[head] = np.zeros((33, 33))
         train_data_set[head][row][col] = 1
-        return 2
-    elif (selecter == 1 or selecter == 0) and help != 0:
-        selecter = 2
+        return temp
     if selecter == 2:
         if head not in val_dataset:
             val_dataset[head] = np.zeros((33, 33))
@@ -540,66 +501,65 @@ def select(selecter, help, head, row, col, train_data_set, val_dataset, test_dat
         if head not in test_dataset:
             test_dataset[head] = np.zeros((33, 33))
         test_dataset[head][row][col] = 1
-        return 1
-
-    return selecter
+        return 2
 
 
-def split_cloudy_set(cloudy_pixels):
+def split_cloudy_set(cloudy_pixels, N_prop):
     train_dataset = {}
     val_dataset = {}
     test_dataset = {}
 
-    selecter = [0, 0, 0]
+    selecter = [2, 2, 2]
 
     for head, _ in cloudy_pixels.items():
         for row in range(33):
             for col in range(33):
                 cloudiest = cloudy_pixels[head][row][col]
+
                 # Ensure that the distribution of double clouded imager (t-1 and t-2) is
                 # egal between the 3 datasets
                 if cloudiest[0] != -1 and cloudiest[1] != -1:
                     selecter[0] = select(
                         selecter[0],
-                        0,
                         head,
                         row,
                         col,
                         train_dataset,
                         val_dataset,
                         test_dataset,
+                        N_prop
                     )
                 # Ensure that the distribution of highly clouded images (t-1 or t-2) is
                 # egal between the 3 datasets
                 elif cloudiest[0] == 1 or cloudiest[1] == 1:
                     selecter[1] = select(
                         selecter[1],
-                        1,
                         head,
                         row,
                         col,
                         train_dataset,
                         val_dataset,
                         test_dataset,
+                        N_prop
                     )
                 # Ensure that the distribution of the images that are not very cloudy (t-1
                 # or t-2) is egal between the 3 datasets
                 elif cloudiest[0] == 0 or cloudiest[1] == 0:
                     selecter[2] = select(
                         selecter[2],
-                        2,
                         head,
                         row,
                         col,
                         train_dataset,
                         val_dataset,
                         test_dataset,
+                        N_prop
                     )
 
     return train_dataset, val_dataset, test_dataset
 
 
-def get_train_val_test_cloudy(cloudy_pixels, pro_array):
+def get_train_val_test_cloudy(cloudy_pixels, pro_array, N_prop):
     proportions_array = copy.deepcopy(pro_array)
     for i, element in enumerate(proportions_array):
         proportions_array[i] = element / (256 * 256)
@@ -621,36 +581,11 @@ def get_train_val_test_cloudy(cloudy_pixels, pro_array):
                     clouded_repartition[cloudiest[0]] += 1
                     clouded_repartition[cloudiest[1]] += 1
 
-    print("==========")
-    print("Total number", repartition.sum())
-    print("Number of double", double)
-    print("Double Clouded repartition : ")
-    print(
-        f"Global repartition and clouded repartition\n{repartition}\n{clouded_repartition}",
-    )
-    for i, prop in enumerate(proportions_array):
-        maxi = 0
-        if i == len(proportions_array) - 1:
-            maxi = 100
-        else:
-            maxi = int(proportions_array[i + 1] * 100)
-
-        print(
-            f"simple clouded {int(repartition[i])} are between {int(prop * 100)} % and {maxi}% ",
-        )
-        print(
-            f"double clouded {int(clouded_repartition[i])} are between {int(prop * 100)} % and {maxi}% ",
-        )
-    print("==========")
-
-    return split_cloudy_set(cloudy_pixels)
+    return split_cloudy_set(cloudy_pixels, N_prop)
 
 
-def get_cloudy_dataset(dataset_to_check, from_cloudy_percentage, data_path):
-
-    csv_path = osp.join(data_path, 'image_series.csv')
-
-    series = pd.read_csv(csv_path)
+def get_cloudy_dataset(dataset_to_check, from_cloudy_percentage,
+                       series, data_path, N_prop):
 
     cloudy_pixels = {}
 
@@ -667,7 +602,7 @@ def get_cloudy_dataset(dataset_to_check, from_cloudy_percentage, data_path):
                     line, from_cloudy_percentage, data_path)
 
     train_mask_cloudy, val_mask_cloudy, test_mask_cloudy = get_train_val_test_cloudy(
-        cloudy_pixels, proportions_array,
+        cloudy_pixels, proportions_array, N_prop
     )
 
     return train_mask_cloudy, val_mask_cloudy, test_mask_cloudy
@@ -694,49 +629,7 @@ def get_dataset_size(grids):
     return size
 
 
-def get_datasets_for_metrics(val_test_dataset, val_test_dataset_total_size,
-                             grids_size, from_cloudy_percentage, data_path):
-
-    # Generalisation dataset for the generalisation metrics
-    # kalingrad_copy = copy.copy(
-    #     val_test_dataset["KALININGRAD_GUSEV_2018-04-07_2018-04-19"]
-    # )
-    # generalisation_dataset = {
-    #     "KALININGRAD_GUSEV_2018-04-07_2018-04-19": kalingrad_copy}
-
-    # generalisation_size = get_dataset_size(generalisation_dataset)
-    # print("Generalisation dataset size =", generalisation_size)
-
-    # Data set for the netrics that give us the performance when the t et t-1
-    # s1 data are very different
-
-    # s1_difference_dataset = get_s1_differences_dataset(val_test_dataset, data_path)
-
-    # Data set for the netrics that give us the performance when the t et t-1
-    # s1 data are very different
-    print("\n==== CLOUDY VAL_TEST PART ====\n")
-
-    train_mask_cloudy, val_mask_cloudy, test_mask_cloudy = get_cloudy_dataset(
-
-        val_test_dataset, from_cloudy_percentage, data_path)
-
-    print("\n==== FIN DE LA CLOUDY VAL_TEST PART ====\n")
-
-    val_test_dataset = remove_dataset_from_another(val_test_dataset, val_mask_cloudy)
-    val_test_dataset = remove_dataset_from_another(val_test_dataset, test_mask_cloudy)
-    val_test_dataset = remove_dataset_from_another(val_test_dataset, train_mask_cloudy)
-    # s1_difference_dataset = remove_dataset_from_another(s1_difference_dataset, train_mask_cloudy)
-
-    # generalisation_dataset = remove_dataset_from_another(generalisation_dataset, train_mask_cloudy)
-
-    return val_test_dataset, train_mask_cloudy, val_mask_cloudy, test_mask_cloudy
-
-
 def check_no_duplication(train_data_set,
-                         #  val_generalisation_dataset,
-                         #  test_generalisation_dataset,
-                         #  val_s1_difference_dataset,
-                         #  test_s1_difference_dataset,
                          val_regular_dataset,
                          test_regular_dataset,
                          val_mask_cloudy,
@@ -746,29 +639,6 @@ def check_no_duplication(train_data_set,
         for i in range(32):
             for j in range(32):
                 if train_data_set[key][i, j] == 1:
-                    # if key in val_generalisation_dataset:
-                    #     if val_generalisation_dataset[key][i, j] == 1:
-                    #         raise ValueError(
-                    #             "You have commun data between your train and "
-                    #             f"val_generalisation_dataset at {key} index {i}{j}")
-                    # if key in test_generalisation_dataset:
-                    #     if test_generalisation_dataset[key][i, j] == 1:
-                    #         raise ValueError(
-                    #             "You have commun data between your train and "
-                    #             "test_generalisation_dataset dataset "
-                    #             f"at {key} index {i}{j}")
-
-                    # if key in val_s1_difference_dataset:
-                    #     if val_s1_difference_dataset[key][i, j] == 1:
-                    #         raise ValueError(
-                    #             "You have commun data between your train and "
-                    #             "val_s1_difference_dataset dataset "
-                    #             f"at {key} index {i}{j}")
-                    # if key in test_s1_difference_dataset:
-                    #     if test_s1_difference_dataset[key][i, j] == 1:
-                    #         raise ValueError(
-                    #             f"You have commun data between your train and "
-                    #             f"test_s1_difference_dataset at {key} index {i}{j}")
                     if key in val_regular_dataset:
                         if val_regular_dataset[key][i, j] == 1:
                             raise ValueError(
@@ -792,13 +662,6 @@ def check_no_duplication(train_data_set,
                             f"test_mask_cloudy dataset at {key} index {i}{j}",
                         )
 
-    print("========")
-    print(
-        "You do not have duplication between your train dataset "
-        "and your test/validation datasets",
-    )
-    print("========")
-
 
 def check_no_duplication_val_test(dataset_1, dataset_2):
     for key, _ in dataset_1.items():
@@ -812,45 +675,22 @@ def check_no_duplication_val_test(dataset_1, dataset_2):
 
 
 def final_checkers(train_data_set,
-                   #    val_generalisation_dataset,
-                   #    test_generalisation_dataset,
-                   #    val_s1_difference_dataset,
-                   #    test_s1_difference_dataset,
                    val_regular_dataset,
                    test_regular_dataset,
                    val_mask_cloudy,
                    test_mask_cloudy,
                    data_path):
 
-    # train_difference_dataset = get_s1_differences_dataset(train_data_set, data_path)
-
-    # grid_show(train_difference_dataset, "TRAIN DIFF DATASET")
-
-    # print("========")
-    # print("Train difference dataset size =", get_dataset_size(train_difference_dataset))
-
     check_no_duplication(
         train_data_set,
-        # val_generalisation_dataset,
-        # test_generalisation_dataset,
-        # val_s1_difference_dataset,
-        # test_s1_difference_dataset,
         val_regular_dataset,
         test_regular_dataset,
         val_mask_cloudy,
         test_mask_cloudy,
     )
 
-    # check_no_duplication_val_test(val_generalisation_dataset,
-    #                               test_generalisation_dataset)
-
-    # check_no_duplication_val_test(val_s1_difference_dataset,
-    #                               test_s1_difference_dataset)
     check_no_duplication_val_test(val_regular_dataset, test_regular_dataset)
     check_no_duplication_val_test(val_mask_cloudy, test_mask_cloudy)
-
-    print("You dont have duplicate date between your validations and tests datasets")
-    print("========")
 
 
 def get_one_of_two_datas(dataset):
@@ -876,42 +716,12 @@ def get_one_of_two_datas(dataset):
 
 
 def split_val_test(regular_dataset):
-    # val_generalisation_dataset = {}
-    # test_generalisation_dataset = {}
-    # val_s1_difference_dataset = {}
-    # test_s1_difference_dataset = {}
     val_regular_dataset = {}
     test_regular_dataset = {}
 
-    # val_generalisation_dataset,
-    # test_generalisation_dataset = get_one_of_two_datas(
-    #     generalisation_dataset)
-
-    # val_s1_difference_dataset, test_s1_difference_dataset = get_one_of_two_datas(
-    #     s1_difference_dataset)
-
     val_regular_dataset, test_regular_dataset = get_one_of_two_datas(regular_dataset)
 
-    print("========")
-
-    # print("test_generalisation_dataset size", get_dataset_size(
-    #     test_generalisation_dataset
-    # ))
-    # print("val_generalisation_dataset size", get_dataset_size(
-    #     val_generalisation_dataset
-    # ))
-
-    # print("test_s1_difference_dataset size", get_dataset_size(
-    #     test_s1_difference_dataset
-    # ))
-    # print("val_s1_difference_dataset size", get_dataset_size(
-    #     val_s1_difference_dataset
-    # ))
-    print("test_regular_dataset size", get_dataset_size(test_regular_dataset))
-    print("val_regular_dataset size", get_dataset_size(val_regular_dataset))
-
-    return (  # val_s1_difference_dataset, test_s1_difference_dataset,
-        val_regular_dataset, test_regular_dataset)
+    return (val_regular_dataset, test_regular_dataset)
 
 
 def clean_empty_key(array):
@@ -983,65 +793,40 @@ def get_all_grids(data_path, array):
 
 
 def test_csv(data_path):
-    print("===============\n")
-    print("FROM HERE START THE CSV DATA CHECKER\n")
-    print("===============")
 
-    print(
-        "Check size for train dataset taken from CSV",
-        size_check(data_path, "train_regular.csv"),
-    )
-    print(
-        "Check size for train cloudy dataset taken from CSV",
-        size_check(data_path, "train_cloudy.csv"),
-    )
+    # print(
+    #     "Check size for train dataset taken from CSV",
+    #     size_check(data_path, "train_regular.csv"),
+    # )
+    # print(
+    #     "Check size for train cloudy dataset taken from CSV",
+    #     size_check(data_path, "train_cloudy.csv"),
+    # )
 
-    # print("Check size for val generalisation dataset taken from CSV = ", size_check(data_path,
-    #                                                                                 "validation_generalisation.csv"))
-    # print("Check size for test generalisation dataset taken from CSV = ", size_check(data_path,
-    #                                                                                  "test_generalisation.csv"))
+    # print("Check size for val regular dataset taken from CSV = ", size_check(data_path,
+    #                                                                          "validation_regular.csv"))
+    # print("Check size for test regular dataset taken from CSV = ", size_check(data_path,
+    #                                                                           "test_regular.csv"))
 
-    # print("Check size for val s1 difference dataset taken from CSV = ", size_check(
-    #     "validation_s1_difference.csv"))
-    # print("Check size for test s1 difference dataset taken from CSV = ", size_check(
-    #     "test_s1_difference.csv"))
-
-    print("Check size for val regular dataset taken from CSV = ", size_check(data_path,
-                                                                             "validation_regular.csv"))
-    print("Check size for test regular dataset taken from CSV = ", size_check(data_path,
-                                                                              "test_regular.csv"))
-
-    print("Check size for val_mask_cloudy dataset taken from CSV = ", size_check(data_path,
-                                                                                 "validation_mask_cloudy.csv"))
-    print("Check size for test_mask_cloudy dataset taken from CSV = ", size_check(data_path,
-                                                                                  "test_mask_cloudy.csv"))
+    # print("Check size for val_mask_cloudy dataset taken from CSV = ", size_check(data_path,
+    #                                                                              "validation_mask_cloudy.csv"))
+    # print("Check size for test_mask_cloudy dataset taken from CSV = ", size_check(data_path,
+    #                                                                               "test_mask_cloudy.csv"))
 
     grids_array = get_all_grids(data_path, ["train_regular.csv",
                                             "train_cloudy.csv",
-                                            # "validation_generalisation.csv",
-                                            # "test_generalisation.csv",
-                                #  "validation_s1_difference.csv",
-                                            #  "test_s1_difference.csv",
                                             "validation_regular.csv",
                                             "test_regular.csv",
                                             "validation_mask_cloudy.csv",
                                             "test_mask_cloudy.csv"])
 
     final_checkers(grids_array["train_regular.csv"],
-                   #    grids_array["validation_generalisation.csv"],
-                   #    grids_array["test_generalisation.csv"],
-                   #    grids_array["validation_s1_difference.csv"],
-                   #    grids_array["test_s1_difference.csv"],
                    grids_array["validation_regular.csv"],
                    grids_array["test_regular.csv"],
                    grids_array["validation_mask_cloudy.csv"],
                    grids_array["test_mask_cloudy.csv"],
                    data_path)
     final_checkers(grids_array["train_cloudy.csv"],
-                   #    grids_array["validation_generalisation.csv"],
-                   #    grids_array["test_generalisation.csv"],
-                   #    grids_array["validation_s1_difference.csv"],
-                   #    grids_array["test_s1_difference.csv"],
                    grids_array["validation_regular.csv"],
                    grids_array["test_regular.csv"],
                    grids_array["validation_mask_cloudy.csv"],
@@ -1075,121 +860,90 @@ if __name__ == "__main__":
     DATA_PATH = "../data"
     VALIDATION_TEST_PERCENT = 20  # Size of the VALIDATION and TEST dataset in Percent
     GRID_SHOW = False
+    np.random.seed(1)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--from_cloudy_percentage', type=int, required=True,
                         default=2.5)
+    parser.add_argument('--prop_cloudy_val_test', type=int, required=True,
+                        default=20)
     args = parser.parse_args()
 
-    from_cloudy_percentage = args.from_cloudy_percentage
+    from_cloudy_percentage = args.from_cloudy_percentage / 100
 
-    (
-        val_test_dataset,
-        val_test_dataset_total_size,
-        grids_size,
-        train_data_set,
-    ) = split_train_val_test(VALIDATION_TEST_PERCENT, DATA_PATH)
+    prop_cloudy_val_test = args.prop_cloudy_val_test
 
-    (
+    csv_path = osp.join(DATA_PATH, "image_series.csv")
+    series = pd.read_csv(csv_path)
 
-        # generalisation_dataset,
-        #   s1_difference_dataset,
-        regular_dataset, train_mask_cloudy, val_mask_cloudy, test_mask_cloudy) = get_datasets_for_metrics(
-        val_test_dataset, val_test_dataset_total_size, grids_size, from_cloudy_percentage / 100, DATA_PATH
+    grids, grids_size = grid_exploration(series)
 
-    )
+    train_cloudy_dataset, val_cloudy_dataset, test_cloudy_dataset = get_cloudy_dataset(
+        grids, from_cloudy_percentage, series, DATA_PATH, prop_cloudy_val_test)
 
-    train_data_set = join_dataset(train_mask_cloudy, train_data_set)
+    grids = remove_dataset_from_another(grids, train_cloudy_dataset)
+    grids = remove_dataset_from_another(grids, val_cloudy_dataset)
+    grids = remove_dataset_from_another(grids, test_cloudy_dataset)
 
-    print("\n==== CLOUDY TRAINING PART ====\n")
-    from_cloudy_percentage_training = 2.5
-    train_cloudy_dataset = get_train_cloudy_dataset(
-        train_data_set, from_cloudy_percentage / 100, DATA_PATH)
-    print("\n==== FIN DE LA CLOUDY TRAINING PART ====\n")
+    val_test_regular_dataset, number_of_data_for_valtest_for_each_grids = get_datas_arround_missing_datas(
+        grids, VALIDATION_TEST_PERCENT, grids_size)
+
+    train_dataset = remove_dataset_from_another(grids, val_test_regular_dataset)
+
+    val_regular_dataset, test_regular_dataset = split_val_test(val_test_regular_dataset)
+
+    train_dataset = remove_dataset_from_another(grids, val_test_regular_dataset)
 
     print("========")
-    print("Train dataset size =", get_dataset_size(train_data_set))
+    print("Train dataset size =", get_dataset_size(train_dataset))
     print("Train cloudy dataset size =", get_dataset_size(train_cloudy_dataset))
-    # print("Generalisation dataset size =", get_dataset_size(generalisation_dataset))
-    # print("Difference dataset size =", get_dataset_size(s1_difference_dataset))
-    print("Regular dataset size = ", get_dataset_size(regular_dataset))
-    print(
-        "Cloudy dataset size = ",
-        get_dataset_size(val_mask_cloudy) + get_dataset_size(test_mask_cloudy),
-    )
-    print("========")
-
-    (val_regular_dataset,
-     test_regular_dataset) = split_val_test(regular_dataset)
-    # generalisation_dataset,
-    # s1_difference_dataset,
-    # regular_dataset
-    # )
-
-    print("val_mask_cloudy_dataset size", get_dataset_size(val_mask_cloudy))
-    print("test_mask_cloudy_dataset size", get_dataset_size(test_mask_cloudy))
+    print("Val regular dataset size = ", get_dataset_size(val_regular_dataset))
+    print("Test regular dataset size = ", get_dataset_size(test_regular_dataset))
+    print("val_mask_cloudy_dataset size", get_dataset_size(val_cloudy_dataset))
+    print("test_mask_cloudy_dataset size", get_dataset_size(test_cloudy_dataset))
     print("========")
 
     clean_empty_key([
-        # val_generalisation_dataset,
-        # test_generalisation_dataset,
-                    #  val_s1_difference_dataset,
-                    #  test_s1_difference_dataset,
                     val_regular_dataset,
                     test_regular_dataset])
 
     final_checkers(
-        train_data_set,
-        # val_generalisation_dataset,
-        # test_generalisation_dataset,
-        # val_s1_difference_dataset,
-        # test_s1_difference_dataset,
+        train_dataset,
         val_regular_dataset,
         test_regular_dataset,
-        val_mask_cloudy,
-        test_mask_cloudy,
+        val_cloudy_dataset,
+        test_cloudy_dataset,
         DATA_PATH,
     )
 
     final_checkers(
         train_cloudy_dataset,
-        # val_generalisation_dataset,
-        # test_generalisation_dataset,
-        # val_s1_difference_dataset,
-        # test_s1_difference_dataset,
         val_regular_dataset,
         test_regular_dataset,
-        val_mask_cloudy,
-        test_mask_cloudy,
+        val_cloudy_dataset,
+        test_cloudy_dataset,
         DATA_PATH)
 
     create_csv(DATA_PATH,
-               {"train_regular.csv": train_data_set,
+               {"train_regular.csv": train_dataset,
                 "train_cloudy.csv": train_cloudy_dataset,
-                # "validation_generalisation.csv": val_generalisation_dataset,
-                # "test_generalisation.csv": test_generalisation_dataset,
-                # "validation_s1_difference.csv": val_s1_difference_dataset,
-                # "test_s1_difference.csv": test_s1_difference_dataset,
                 "validation_regular.csv": val_regular_dataset,
                 "test_regular.csv": test_regular_dataset,
-                "validation_mask_cloudy.csv": val_mask_cloudy,
-                "test_mask_cloudy.csv": test_mask_cloudy})
+                "validation_mask_cloudy.csv": val_cloudy_dataset,
+                "test_mask_cloudy.csv": test_cloudy_dataset})
 
     test_csv(DATA_PATH)
 
     if GRID_SHOW:
-        grid_show(train_data_set, "Train")
+        grid_show(train_dataset, "Train")
         grid_show(train_cloudy_dataset, "Train clo")
-        # grid_show(val_generalisation_dataset, "Val/ gen")
-        # grid_show(test_generalisation_dataset, "Test gen")
-        # grid_show(val_s1_difference_dataset, "Val dif")
-        # grid_show(test_s1_difference_dataset, "Test dif")
         grid_show(val_regular_dataset, "Val reg")
         grid_show(test_regular_dataset, "Test reg")
-        grid_show(val_mask_cloudy, "Val clo")
-        grid_show(test_mask_cloudy, "Test clo")
+        grid_show(val_cloudy_dataset, "Val clo")
+        grid_show(test_cloudy_dataset, "Test clo")
 
-    print(f"FROM CLOUDY PERCENTAGE : {from_cloudy_percentage}% ")
+    print(f"FROM CLOUDY PERCENTAGE : {from_cloudy_percentage * 100}% ")
+    print(f"PROPORTION CLOUDY VAL TEST : {prop_cloudy_val_test}% ")
 
     if GRID_SHOW:
         plt.ion()
