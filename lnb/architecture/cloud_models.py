@@ -1,6 +1,6 @@
 """Cloud models for LNB."""
 import abc
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import torch
 from torch import nn
@@ -29,14 +29,25 @@ class BaseCloudModel(nn.Module):
         self.config = model_config
         self.base_model = base_model
 
-    def filter_cloud(self, in_mask_lai_batch: torch.Tensor) -> torch.Tensor:
-        """Filter cloudy data and return their indices."""
+    def filter_cloud(self, in_mask_lai_batch: torch.Tensor) -> List[torch.Tensor]:
+        """Filter cloudy data so that de-clouding is possible with other time step."""
         cloud_prop = 0.02
         with torch.no_grad():
-            # Count number of cloudy/missing pixels in the two time steps
-            num_cloud = torch.sum(in_mask_lai_batch[:, :, 0] == 0, dim=(2, 3))
-            indices = torch.where(num_cloud > cloud_prop * 256 * 256)
-        return indices
+            # Count number of cloudy/missing pixels (= mask channel 0) that are
+            # not cloudy/missing in the other time step
+            # Operation considered is [A AND (A XOR B)] so that:
+            # (A=True, B=False) -> True, rest -> False
+            clouds = (in_mask_lai_batch[:, :, 0] == 0)  # (batch, 2, 256, 256)
+            clouds_xor = torch.logical_xor(clouds[:, 0],
+                                           clouds[:, 1])  # (batch, 256, 256)
+            clouds_recoverable = torch.cat([
+                torch.unsqueeze(clouds[:, 0] * clouds_xor, dim=1),
+                torch.unsqueeze(clouds[:, 1] * clouds_xor, dim=1),
+            ])  # (batch, 2, 256, 256)
+            idx_recoverable = torch.where(
+                torch.sum(clouds_recoverable, dim=(2, 3)) > cloud_prop * 256**2,
+            )
+        return idx_recoverable
 
     def forward(
         self,
@@ -86,7 +97,7 @@ class BaseCloudModel(nn.Module):
         out_mask : torch.Tensor
             Corresponding mask of shape (batch, c, 256, 256)
         """
-        # should return de-clouded lai_cloud
+        # should return de-clouded lai_cloud and corresponding mask
         raise NotImplementedError('You need to implement process_cloud method.')
 
 
