@@ -178,7 +178,6 @@ class MlCloudModel(BaseCloudModel):
         """Return encoder layers list."""
         block = nn.Sequential()
         for i in range(len(channels) - 1):
-            print(channels[i], channels[i + 1])
             block.add_module(
                 f'conv{i}',
                 nn.Conv2d(
@@ -202,22 +201,16 @@ class MlCloudModel(BaseCloudModel):
         # LAI branch
         mask_cloud_emb = self.cloud_mask_layer(mask_cloud)
         mask_other_emb = self.other_mask_layer(mask_other)
+
         input1 = torch.cat([lai_cloud, mask_cloud_emb, lai_other, mask_other_emb],
                            dim=1)
-        self.conv_block_lai(input1)
+
+        lai_de_clouded = self.conv_block_lai(input1)
         # Mask branch
         input2 = torch.cat([mask_cloud, mask_other], dim=1)
-        self.conv_block_mask(input2)
+        mask_de_clouded = self.conv_block_mask(input2)
 
-        cr1 = torch.cat([lai_cloud, mask_cloud_emb, lai_other, mask_other_emb], dim=1)
-        # conv_1_layers
-        cr1 = self.cr1_layer(cr1)
-
-        lai_de_clouded = torch.cat([cr1, lai_cloud], dim=1)
-        # conv_2_layers
-        lai_de_clouded = self.cr2_layer(lai_de_clouded)
-
-        return lai_de_clouded, mask_cloud  # LAI de-clouded, mask
+        return lai_de_clouded, mask_de_clouded  # LAI de-clouded, mask
 
 
 class MixCloudModel(MlCloudModel):
@@ -239,10 +232,12 @@ class MixCloudModel(MlCloudModel):
             # lai_other = (lai_other - other_mean) / (other_std + 1e-6)
             # lai_other = lai_other * cloud_std + cloud_mean
 
-            out_lai = ((1 - mask_cloud[:, 0:1]) * lai_cloud
-                       + mask_cloud[:, 0:1] * lai_other)
-            out_mask = mask_cloud
-        return out_lai, out_mask
+            out_lai = (mask_cloud[:, 0:1] * lai_cloud
+                       + (1 - mask_cloud[:, 0:1]) * lai_other)
+
+            # out_mask = (mask_cloud[:, 0:1] * mask_cloud
+            #             + (1 - mask_cloud[:, 0:1]) * mask_other)
+        return out_lai, mask_cloud
 
     def process_cloud(
         self,
@@ -256,24 +251,20 @@ class MixCloudModel(MlCloudModel):
                                                       mask_cloud,
                                                       mask_other)
 
+        """Forward pass."""
+        # LAI branch
         mask_cloud_emb = self.cloud_mask_layer(mask_cloud)
         mask_other_emb = self.other_mask_layer(mask_other)
+
         input1 = torch.cat([lai_cloud, mask_cloud_emb, lai_other, mask_other_emb],
                            dim=1)
-        self.conv_block_lai(input1)
+
+        lai_de_clouded = self.conv_block_lai(input1)
         # Mask branch
         input2 = torch.cat([mask_cloud, mask_other], dim=1)
-        self.conv_block_mask(input2)
+        mask_de_clouded = self.conv_block_mask(input2)
 
-        cr1 = torch.cat([lai_cloud, mask_cloud_emb, lai_other, mask_other_emb], dim=1)
-        # conv_1_layers
-        cr1 = self.cr1_layer(cr1)
-
-        lai_de_clouded = torch.cat([cr1, lai_cloud], dim=1)
-        # conv_2_layers
-        lai_de_clouded = self.cr2_layer(lai_de_clouded)
-
-        return lai_de_clouded, mask_cloud  # LAI de-clouded, mask
+        return lai_de_clouded, mask_de_clouded  # LAI de-clouded, mask
 
 
 if __name__ == '__main__':

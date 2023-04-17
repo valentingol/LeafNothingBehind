@@ -293,7 +293,7 @@ def main() -> None:
     run_id = np.random.randint(1000000)
     config["run_id"] = run_id
     wandb.init(
-        project="lnb", entity="leaf_nothing_behind", group="scandium_mixcloud", config=config, notes="commit d9fa3ccba7a1d1cad6a840fa6cabaeae05bd92f3 on human_cloud_model"
+        project="lnb", entity="leaf_nothing_behind", group="scandium_mixcloud", config=config
     )
     run(dict(wandb.config))
     wandb.finish()
