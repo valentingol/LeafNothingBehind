@@ -246,11 +246,10 @@ class MixCloudModel(MlCloudModel):
         mask_cloud: torch.Tensor,
         mask_other: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        lai_cloud, mask_cloud = self._manual_embeding(lai_cloud,
-                                                      lai_other,
-                                                      mask_cloud,
-                                                      mask_other)
-
+        # lai_cloud, mask_cloud = self._manual_embeding(lai_cloud,
+        #                                               lai_other,
+        #                                               mask_cloud,
+        #                                               mask_other)
         """Forward pass."""
         # LAI branch
         mask_cloud_emb = self.cloud_mask_layer(mask_cloud)
