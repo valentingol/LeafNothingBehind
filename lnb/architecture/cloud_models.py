@@ -232,15 +232,15 @@ class MixCloudModel(MlCloudModel):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         with torch.no_grad():
             # Normalize lai_other like lai_cloud
-            cloud_mean = torch.mean(lai_cloud, dim=(2, 3), keepdim=True)
-            cloud_std = torch.std(lai_cloud, dim=(2, 3), keepdim=True)
-            other_mean = torch.mean(lai_other, dim=(2, 3), keepdim=True)
-            other_std = torch.std(lai_other, dim=(2, 3), keepdim=True)
-            lai_other = (lai_other - other_mean) / (other_std + 1e-6)
-            lai_other = lai_other * cloud_std + cloud_mean
+            # cloud_mean = torch.mean(lai_cloud, dim=(2, 3), keepdim=True)
+            # cloud_std = torch.std(lai_cloud, dim=(2, 3), keepdim=True)
+            # other_mean = torch.mean(lai_other, dim=(2, 3), keepdim=True)
+            # other_std = torch.std(lai_other, dim=(2, 3), keepdim=True)
+            # lai_other = (lai_other - other_mean) / (other_std + 1e-6)
+            # lai_other = lai_other * cloud_std + cloud_mean
 
-            out_lai = (mask_cloud[:, 0:1] * lai_cloud
-                       + (1 - mask_cloud[:, 0:1]) * lai_other)
+            out_lai = ((1 - mask_cloud[:, 0:1]) * lai_cloud
+                       + mask_cloud[:, 0:1] * lai_other)
             out_mask = mask_cloud
         return out_lai, out_mask
 
