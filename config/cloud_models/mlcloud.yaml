@@ -9,8 +9,8 @@ dataloader:
   prefetch_factor: 2
 model:
   s1_layers:
-    out_channels: 2 # [in_dim, out_dim]
-    kernel_size: 3 # [in_dim, out_dim]
+    channels: [4, 8] # [in_dim, out_dim]
+    kernel_sizes: [3, 3] # [in_dim, out_dim]
   mask_layer:
     out_channels: 2 # [in_dim, out_dim]
     kernel_size: 3 # [in_dim, out_dim]

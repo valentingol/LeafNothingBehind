@@ -148,16 +148,16 @@ class MlCloudModel(BaseCloudModel):
             raise ValueError("model_config is required for MlCloudModel.")
 
         # S1 LAI branch
-        self.s1_lai_layer = nn.Conv2d(
-            in_channels=base_model.config["s1_ae_config"]["in_dim"],
-            padding='same',
-            **model_config['s1_layers'],
+        in_lai_dim = base_model.config["s1_ae_config"]["in_dim"]
+        self.s1_lai_layer = self._build_block(
+            channels=[in_lai_dim] + model_config["s1_layers"]["channels"],
+            kernels=model_config["s1_layers"]["kernel_sizes"],
         )
         # S1 other branch
-        self.s1_other_layer = nn.Conv2d(
-            in_channels=base_model.config["s1_ae_config"]["in_dim"],
-            padding='same',
-            **model_config['s1_layers'],
+        in_lai_dim = base_model.config["s1_ae_config"]["in_dim"]
+        self.s1_other_layer = self._build_block(
+            channels=[in_lai_dim] + model_config["s1_layers"]["channels"],
+            kernels=model_config["s1_layers"]["kernel_sizes"],
         )
 
         # LAI branch
@@ -174,7 +174,7 @@ class MlCloudModel(BaseCloudModel):
         # Dimension of the LAI + mask_embedding concatenation before LAI conv block
         in_lai_dim = (2 + 2
                       * model_config["mask_layer"]["out_channels"] + 2
-                      * model_config["s1_layers"]["out_channels"])
+                      * model_config["s1_layers"]["channels"][-1])
         self.conv_block_lai = self._build_block(
             channels=[in_lai_dim] + model_config["conv_block_lai"]["channels"],
             kernels=model_config["conv_block_lai"]["kernel_sizes"],
