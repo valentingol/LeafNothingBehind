@@ -8,22 +8,15 @@ dataloader:
   shuffle: true
   prefetch_factor: 2
 model:
-  cloud_mask:
-    out_dim: 2 # [in_dim, out_dim]
-    kernel: 3 # [in_dim, out_dim]
-    relu: False
-  other_mask:
-    out_dim: 2 # [in_dim, out_dim]
-    kernel: 3 # [in_dim, out_dim]
-    relu: False
-  cr1_config:
-    out_dim: 8 # [in_dim, out_dim]
-    kernel: 7
-    relu: False
-  cr2_config: 
-    out_dim: 1 # [in_dim, out_dim]
-    kernel: 7
-    relu: False
+  mask_layer:
+    out_channels: 2 # [in_dim, out_dim]
+    kernel_size: 3 # [in_dim, out_dim]
+  conv_block_lai:
+    channels: [8, 1]  # number of conv layers is len(channels)
+    kernel_sizes: [7, 7]
+  conv_block_mask:
+    channels: [6]  # number of conv layers is len(channels)
+    kernel_sizes: [5]
 base_model:
   s1_ae_config:  # U-Net-like architecture
     in_dim: 2  # always 2 (if input={VV, VH})
