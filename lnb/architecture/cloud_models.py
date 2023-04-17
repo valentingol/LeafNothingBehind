@@ -28,7 +28,7 @@ class BaseCloudModel(nn.Module):
         super().__init__()
         self.config = model_config
         self.base_model = base_model
-        self.proportion = 0.0
+        self.filter_prop = 0.0
 
     def filter_cloud(self, in_mask_lai_batch: torch.Tensor) -> List[torch.Tensor]:
         """Filter cloudy data so that de-clouding is possible with other time step."""
@@ -48,7 +48,7 @@ class BaseCloudModel(nn.Module):
             idx_recoverable = torch.where(
                 torch.sum(clouds_recoverable, dim=(2, 3)) > cloud_prop * 256**2,
             )
-            self.proportion += len(idx_recoverable[0]) / (2 * len(in_mask_lai_batch[0]))
+            self.filter_prop = len(idx_recoverable[0]) / (2 * len(in_mask_lai_batch))
         return idx_recoverable
 
     def forward(
@@ -126,6 +126,10 @@ class HumanCloudModel(BaseCloudModel):
 
             out_lai = (mask_cloud[:, 0:1] * lai_cloud
                        + (1 - mask_cloud[:, 0:1]) * lai_other)
+
+            out_lai = (mask_cloud[:, 0:1] * mask_cloud
+                       + (1 - mask_cloud[:, 0:1]) * mask_other)
+
             out_mask = mask_cloud
         return out_lai, out_mask
 
