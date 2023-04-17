@@ -106,12 +106,13 @@ class BaseCloudModel(nn.Module):
 class HumanCloudModel(BaseCloudModel):
     """Process cloud with human heuristic."""
 
+    # pylint: disable=unused-argument
     def process_cloud(
         self,
         lai_cloud: torch.Tensor,
         lai_other: torch.Tensor,
         mask_cloud: torch.Tensor,
-        mask_other: torch.Tensor,
+        mask_other: torch.Tensor,  # noqa: ARG002
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Process cloud on batch."""
         with torch.no_grad():
@@ -130,7 +131,7 @@ class HumanCloudModel(BaseCloudModel):
 
 
 class MlCloudModel(BaseCloudModel):
-    """Full ML module for cloud removal on t, given t-1 and both masks"""
+    """Full ML module for cloud removal on t, given t-1 and both masks."""
 
     def __init__(
         self,
@@ -138,19 +139,21 @@ class MlCloudModel(BaseCloudModel):
         model_config: Optional[Dict] = None,
     ) -> None:
         super().__init__(base_model=base_model, model_config=model_config)
+        if model_config is None:
+            raise ValueError("model_config is required for MlCloudModel.")
         # Blocks
         self.mask_layer = self._build_conv(
             base_model.config["mask_module_dim"][0],
             model_config["cloud_mask"]["out_dim"],
             model_config["cloud_mask"]["kernel"],
-            model_config["cloud_mask"]["relu"],
-            "cloud_mask_conv")
+            relu=model_config["cloud_mask"]["relu"],
+            name="cloud_mask_conv")
         self.other_mask_layer = self._build_conv(
             base_model.config["mask_module_dim"][0],
             model_config["other_mask"]["out_dim"],
             model_config["other_mask"]["kernel"],
-            model_config["other_mask"]["relu"],
-            "other_mask_conv")
+            relu=model_config["other_mask"]["relu"],
+            name="other_mask_conv")
 
         concat_dim = (2 + model_config["other_mask"]["out_dim"]
                       + model_config["cloud_mask"]["out_dim"])
@@ -159,17 +162,25 @@ class MlCloudModel(BaseCloudModel):
             concat_dim,
             model_config["cr1_config"]["out_dim"],
             model_config["cr1_config"]["kernel"],
-            model_config["cr1_config"]["relu"],
-            "conv1")
+            relu=model_config["cr1_config"]["relu"],
+            name="conv1")
 
         self.cr2_layer = self._build_conv(
             model_config["cr1_config"]["out_dim"] + 1,
             model_config["cr2_config"]["out_dim"],
             model_config["cr2_config"]["kernel"],
-            model_config["cr2_config"]["relu"],
-            "conv2")
+            relu=model_config["cr2_config"]["relu"],
+            name="conv2")
 
-    def _build_conv(self, in_dim, out_dim, kernel, relu, name) -> nn.ModuleList:
+    def _build_conv(
+        self,
+        in_dim: int,
+        out_dim: int,
+        kernel: int,
+        *,
+        relu: bool,
+        name: str,
+    ) -> nn.Module:
         """Return encoder layers list."""
         block = nn.Sequential()
         block.add_module(
@@ -186,8 +197,13 @@ class MlCloudModel(BaseCloudModel):
             block.add_module(f"{name}_relu", nn.ReLU())
         return block
 
-    def process_cloud(self, lai_cloud: torch.Tensor, lai_other: torch.Tensor,
-                      mask_cloud: torch.Tensor, mask_other: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def process_cloud(
+        self,
+        lai_cloud: torch.Tensor,
+        lai_other: torch.Tensor,
+        mask_cloud: torch.Tensor,
+        mask_other: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Forward pass."""
         # lai_mask_layers
         mask_cloud_emb = self.mask_layer(mask_cloud)
