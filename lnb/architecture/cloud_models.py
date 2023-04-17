@@ -245,13 +245,13 @@ class MixCloudModel(MlCloudModel):
             # lai_other = (lai_other - other_mean) / (other_std + 1e-6)
             # lai_other = lai_other * cloud_std + cloud_mean
 
-            out_lai = ((1 - mask_cloud[:, 0:1]) * lai_cloud
-                       + mask_cloud[:, 0:1] * lai_other)
+            out_lai = (mask_cloud[:, 0:1] * lai_cloud
+                       + (1 - mask_cloud[:, 0:1]) * lai_other)
 
-            # out_mask = (mask_cloud[:, 0:1] * mask_cloud
-            #             + (1 - mask_cloud[:, 0:1]) * mask_other)
+            out_mask = (mask_cloud[:, 0:1] * mask_cloud
+                        + (1 - mask_cloud[:, 0:1]) * mask_other)
 
-        return out_lai, mask_cloud
+        return out_lai, out_mask
 
     def process_cloud(
         self,
