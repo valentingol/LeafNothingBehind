@@ -127,10 +127,9 @@ class HumanCloudModel(BaseCloudModel):
             out_lai = (mask_cloud[:, 0:1] * lai_cloud
                        + (1 - mask_cloud[:, 0:1]) * lai_other)
 
-            out_lai = (mask_cloud[:, 0:1] * mask_cloud
-                       + (1 - mask_cloud[:, 0:1]) * mask_other)
+            out_mask = (mask_cloud[:, 0:1] * mask_cloud
+                        + (1 - mask_cloud[:, 0:1]) * mask_other)
 
-            out_mask = mask_cloud
         return out_lai, out_mask
 
 
@@ -145,60 +144,51 @@ class MlCloudModel(BaseCloudModel):
         super().__init__(base_model=base_model, model_config=model_config)
         if model_config is None:
             raise ValueError("model_config is required for MlCloudModel.")
-        # Blocks
-        self.mask_layer = self._build_conv(
-            base_model.config["mask_module_dim"][0],
-            model_config["cloud_mask"]["out_dim"],
-            model_config["cloud_mask"]["kernel"],
-            relu=model_config["cloud_mask"]["relu"],
-            name="cloud_mask_conv")
-        self.other_mask_layer = self._build_conv(
-            base_model.config["mask_module_dim"][0],
-            model_config["other_mask"]["out_dim"],
-            model_config["other_mask"]["kernel"],
-            relu=model_config["other_mask"]["relu"],
-            name="other_mask_conv")
+        # LAI branch
+        self.cloud_mask_layer = nn.Conv2d(
+            in_channels=base_model.config["mask_module_dim"][0],
+            padding='same',
+            **model_config['mask_layer'],
+        )
+        self.other_mask_layer = nn.Conv2d(
+            in_channels=base_model.config["mask_module_dim"][0],
+            padding='same',
+            **model_config['mask_layer'],
+        )
+        # Dimension of the LAI + mask_embedding concatenation before LAI conv block
+        in_lai_dim = 2 + 2*model_config["mask_layer"]["out_channels"]
+        self.conv_block_lai = self._build_block(
+            channels=[in_lai_dim] + model_config["conv_block_lai"]["channels"],
+            kernels=model_config["conv_block_lai"]["kernel_sizes"],
+        )
 
-        concat_dim = (2 + model_config["other_mask"]["out_dim"]
-                      + model_config["cloud_mask"]["out_dim"])
+        # Mask branch
+        # Dimension of the mask concatenation before mask conv block
+        in_mask_dim = 2 * base_model.config["mask_module_dim"][0]
+        self.conv_block_mask = self._build_block(
+            channels=[in_mask_dim] + model_config["conv_block_mask"]["channels"],
+            kernels=model_config["conv_block_mask"]["kernel_sizes"],
+        )
 
-        self.cr1_layer = self._build_conv(
-            concat_dim,
-            model_config["cr1_config"]["out_dim"],
-            model_config["cr1_config"]["kernel"],
-            relu=model_config["cr1_config"]["relu"],
-            name="conv1")
-
-        self.cr2_layer = self._build_conv(
-            model_config["cr1_config"]["out_dim"] + 1,
-            model_config["cr2_config"]["out_dim"],
-            model_config["cr2_config"]["kernel"],
-            relu=model_config["cr2_config"]["relu"],
-            name="conv2")
-
-    def _build_conv(
+    def _build_block(
         self,
-        in_dim: int,
-        out_dim: int,
-        kernel: int,
-        *,
-        relu: bool,
-        name: str,
+        channels: List[int],
+        kernels: List[int],
     ) -> nn.Module:
         """Return encoder layers list."""
         block = nn.Sequential()
-        block.add_module(
-            f"{name}_conv",
-            nn.Conv2d(
-                in_dim,
-                out_dim,
-                kernel_size=kernel,
-                stride=1,
-                padding="same",
-            ),
-        )
-        if relu:
-            block.add_module(f"{name}_relu", nn.ReLU())
+        for i in range(len(channels) - 1):
+            print(channels[i], channels[i + 1])
+            block.add_module(
+                f'conv{i}',
+                nn.Conv2d(
+                    in_channels=channels[i],
+                    out_channels=channels[i + 1],
+                    kernel_size=kernels[i],
+                    padding='same',
+                ))
+            if i < len(channels) - 2:
+                block.add_module('relu', nn.ReLU())
         return block
 
     def process_cloud(
@@ -208,6 +198,64 @@ class MlCloudModel(BaseCloudModel):
         mask_cloud: torch.Tensor,
         mask_other: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Forward pass."""
+        # LAI branch
+        mask_cloud_emb = self.cloud_mask_layer(mask_cloud)
+        mask_other_emb = self.other_mask_layer(mask_other)
+        input1 = torch.cat([lai_cloud, mask_cloud_emb, lai_other, mask_other_emb],
+                           dim=1)
+        self.conv_block_lai(input1)
+        # Mask branch
+        input2 = torch.cat([mask_cloud, mask_other], dim=1)
+        self.conv_block_mask(input2)
+
+        cr1 = torch.cat([lai_cloud, mask_cloud_emb, lai_other, mask_other_emb], dim=1)
+        # conv_1_layers
+        cr1 = self.cr1_layer(cr1)
+
+        lai_de_clouded = torch.cat([cr1, lai_cloud], dim=1)
+        # conv_2_layers
+        lai_de_clouded = self.cr2_layer(lai_de_clouded)
+
+        return lai_de_clouded, mask_cloud  # LAI de-clouded, mask
+
+
+class MixCloudModel(MlCloudModel):
+    """Full ML module for cloud removal on t, given t-1 and both masks."""
+
+    def _manual_embeding(
+        self,
+        lai_cloud: torch.Tensor,
+        lai_other: torch.Tensor,
+        mask_cloud: torch.Tensor,
+        mask_other: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        with torch.no_grad():
+            # Normalize lai_other like lai_cloud
+            cloud_mean = torch.mean(lai_cloud, dim=(2, 3), keepdim=True)
+            cloud_std = torch.std(lai_cloud, dim=(2, 3), keepdim=True)
+            other_mean = torch.mean(lai_other, dim=(2, 3), keepdim=True)
+            other_std = torch.std(lai_other, dim=(2, 3), keepdim=True)
+            lai_other = (lai_other - other_mean) / (other_std + 1e-6)
+            lai_other = lai_other * cloud_std + cloud_mean
+
+            out_lai = (mask_cloud[:, 0:1] * lai_cloud
+                       + (1 - mask_cloud[:, 0:1]) * lai_other)
+            out_mask = mask_cloud
+        return out_lai, out_mask
+
+    def process_cloud(
+        self,
+        lai_cloud: torch.Tensor,
+        lai_other: torch.Tensor,
+        mask_cloud: torch.Tensor,
+        mask_other: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        lai_cloud, mask_cloud = self._manual_embeding(lai_cloud,
+                                                      lai_other,
+                                                      mask_cloud,
+                                                      mask_other)
+
         """Forward pass."""
         # lai_mask_layers
         mask_cloud_emb = self.mask_layer(mask_cloud)
@@ -223,7 +271,7 @@ class MlCloudModel(BaseCloudModel):
         # conv_2_layers
         lai_de_clouded = self.cr2_layer(lai_de_clouded)
 
-        return lai_de_clouded, mask_cloud  # LAI de-clouded
+        return lai_de_clouded, mask_cloud  # LAI de-clouded, mask
 
 
 if __name__ == '__main__':
