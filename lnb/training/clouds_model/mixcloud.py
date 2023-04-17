@@ -1,4 +1,4 @@
-"""Training functions for Magnesium."""
+"""Training functions for Scandium."""
 import argparse
 import os
 from time import time
@@ -12,7 +12,8 @@ from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
 
 import wandb
-from lnb.architecture.models import Magnesium
+from lnb.architecture.cloud_models import MixCloudModel
+from lnb.architecture.models import Scandium
 from lnb.data.dataset import LNBDataset
 from lnb.training.log_utils import get_time_log
 from lnb.training.metrics import mse_loss
@@ -124,9 +125,9 @@ def train_val_loop(
     """Training and validation loop."""
     # Save config
     run_id = config["run_id"]
-    os.makedirs(f"../models/magnesium/{run_id}", exist_ok=True)
+    os.makedirs(f"../models/cloud_scandium/{run_id}", exist_ok=True)
     with open(
-        f"../models/magnesium/{run_id}/config.yaml", "w", encoding="utf-8",
+        f"../models/cloud_scandium/{run_id}/config.yaml", "w", encoding="utf-8",
     ) as cfg_file:
         yaml.dump(dict(wandb.config), cfg_file)
     # Get training config params
@@ -216,21 +217,43 @@ def train_val_loop(
         if (epoch + 1) % train_config["save_interval"] == 0:
             torch.save(
                 model.state_dict(),
-                f"../models/magnesium/{run_id}/{run_id}_ep{epoch + 1}.pth",
+                f"../models/cloud_scandium/{run_id}/{run_id}_ep{epoch + 1}.pth",
             )
             print(
-                f"Model saved to ../models/magnesium/{run_id}/"
+                f"Model saved to ../models/cloud_scandium/{run_id}/"
                 f"{run_id}_ep{epoch + 1}.pth",
             )
 
     # Save final model
-    torch.save(model.state_dict(), f"../models/magnesium/{run_id}/{run_id}_last.pth")
-    print(f"Model saved to ../models/magnesium/{run_id}/{run_id}_last.pth")
+    torch.save(model.state_dict(), "../models/cloud_scandium/"
+               f"{run_id}/{run_id}_last.pth")
+    print(f"Model saved to ../models/cloud_scandium/{run_id}/{run_id}_last.pth")
 
 
 def run(config: Dict) -> None:
     """Run training."""
-    model = Magnesium(config["model"])
+    device = torch.device(
+        "cuda"
+        if torch.cuda.is_available()
+        else "mps"
+        if torch.backends.mps.is_built()
+        else "cpu",
+    )
+    base_model = Scandium(config["base_model"])
+    base_model.load_state_dict(
+        torch.load("../models/scandium/295789/295789_last.pth", map_location=device),
+    )
+
+    # Freeze base model
+    for param in base_model.parameters():
+        param.requires_grad = False
+    # Cloud model
+    model = MixCloudModel(base_model=base_model, model_config=config["model"])
+    model = model.to(device)
+    # Print number of parameters
+    n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Model has {n_params} parameters")
+
     train_dataloader = DataLoader(
         LNBDataset(mask_fn=mask_fn, **config["data"]), **config["dataloader"],
     )
@@ -241,7 +264,7 @@ def run(config: Dict) -> None:
     val_loader_config["shuffle"] = False  # No shuffle for validation
     val_loader_config["batch_size"] = 16  # Hard-coded batch size for validation
     val_dataloaders = []
-    for name in ["generalisation", "regular", "mask_cloudy"]:
+    for name in ["mask_cloudy", "regular"]:
         val_data_config["name"] = name
         val_data_config["csv_name"] = f"validation_{name}.csv"
         val_dataloader = DataLoader(
@@ -249,13 +272,6 @@ def run(config: Dict) -> None:
         )
         val_dataloaders.append(val_dataloader)
 
-    device = torch.device(
-        "cuda"
-        if torch.cuda.is_available()
-        else "mps"
-        if torch.backends.mps.is_built()
-        else "cpu",
-    )
     # Run training
     train_val_loop(
         config=config,
@@ -270,17 +286,20 @@ def main() -> None:
     """Main function to run a train with wandb."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--config_path", type=str, required=False, default="config/magnesium/base.yaml",
+        "--config_path", type=str, required=False, default="config/scandium/base.yaml",
     )
     args = parser.parse_args()
 
     with open(args.config_path, encoding="utf-8") as cfg_file:
         config = yaml.safe_load(cfg_file)
     # New id (for model name)
-    run_id = max(int(name) for name in os.listdir("../models/magnesium")) + 1
+    run_id = max(int(name) for name in os.listdir("../models/cloud_scandium")) + 1
     config["run_id"] = run_id
     wandb.init(
-        project="lnb", entity="leaf_nothing_behind", group="magnesium", config=config,
+        project="lnb",
+        entity="leaf_nothing_behind",
+        group="scandium_mixcloud",
+        config=config,
     )
     run(dict(wandb.config))
     wandb.finish()

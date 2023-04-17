@@ -22,7 +22,8 @@ ParsedDataType = Dict[str, Dict[str, torch.Tensor]]
 
 def mask_fn(img_mask: np.ndarray) -> np.ndarray:
     """Transform an S2 mask (values between 1 and 9) to float32.
-    Channels are last dimension."""
+    Channels are last dimension.
+    """
     metric_mask = np.where(img_mask < 2, 0.0, 1.0)
     metric_mask = np.where(img_mask > 6, 0.0, metric_mask)
     mask_2 = np.where(img_mask == 2, 1.0, 0.0)
@@ -34,7 +35,7 @@ def mask_fn(img_mask: np.ndarray) -> np.ndarray:
 
 
 def parse_data_device(
-    data: torch.Tensor, glob: torch.Tensor, device: torch.device
+    data: torch.Tensor, glob: torch.Tensor, device: torch.device,
 ) -> ParsedDataType:
     """Parse data from dataloader and put it on device."""
     # Parse data
@@ -78,14 +79,14 @@ def train_step(
     loss = mse_loss(lai_pred=lai_pred, **parsed_data["target_data"])
     if interm_supervis:
         lai_pred2, lai_pred3 = lai_interm
-    
+
         loss2 = mse_loss(
             lai_pred=lai_pred2,
-            **parsed_data["target_data"]
+            **parsed_data["target_data"],
         )
         loss3 = mse_loss(
             lai_pred=lai_pred3,
-            **parsed_data["target_data"]
+            **parsed_data["target_data"],
         )
 
         loss_total = loss + weight_2 * loss2 + weight_3 * loss3
@@ -119,7 +120,7 @@ def train_val_loop(
     run_id = config["run_id"]
     os.makedirs(f"../models/strontium/{run_id}", exist_ok=True)
     with open(
-        f"../models/strontium/{run_id}/config.yaml", "w", encoding="utf-8"
+        f"../models/strontium/{run_id}/config.yaml", "w", encoding="utf-8",
     ) as cfg_file:
         yaml.dump(dict(wandb.config), cfg_file)
     # Get training config params
@@ -147,7 +148,12 @@ def train_val_loop(
             # Parse data and put it on device
             parsed_data = parse_data_device(data, glob, device)
             loss, loss2 = train_step(
-                model, optimizer, parsed_data, train_config["interm_supervis"], train_config["weight_2"], train_config["weight_3"]
+                model,
+                optimizer,
+                parsed_data,
+                train_config["interm_supervis"],
+                train_config["weight_2"],
+                train_config["weight_3"],
             )
             train_losses.append(loss.item())
             # Logs
@@ -157,7 +163,8 @@ def train_val_loop(
             if i_batch % train_config["log_interval"] == 0:
                 current_t = time()
                 eta_str, eta_ep_str = get_time_log(
-                    current_t, start_t, epoch_start_t, i_batch, epoch, n_batch, n_epochs
+                    current_t, start_t, epoch_start_t, i_batch, epoch, n_batch,
+                    n_epochs,
                 )
                 print(
                     f"train loss batch: {loss.item():.4f} - eta epoch {eta_ep_str}"
@@ -197,7 +204,7 @@ def train_val_loop(
             wandb.log({f"mean valid loss {val_name}": mean_valid_loss})
             print(
                 f"\nEpoch {epoch + 1}/{n_epochs}, mean valid loss "
-                f"{val_name} {mean_valid_loss:.4f}"
+                f"{val_name} {mean_valid_loss:.4f}",
             )
 
         # Free unused VRAM
@@ -213,7 +220,7 @@ def train_val_loop(
             )
             print(
                 f"Model saved to ../models/strontium/{run_id}/"
-                f"{run_id}_ep{epoch + 1}.pth"
+                f"{run_id}_ep{epoch + 1}.pth",
             )
 
         if mean_valid_loss < best_val_loss:
@@ -224,9 +231,9 @@ def train_val_loop(
             )
             print(
                 f"Model saved to ../models/strontium/{run_id}/"
-                f"{run_id}_best.pth"
+                f"{run_id}_best.pth",
             )
-            
+
     # Save final model
     torch.save(model.state_dict(), f"../models/strontium/{run_id}/{run_id}_last.pth")
     print(f"Model saved to ../models/strontium/{run_id}/{run_id}_last.pth")
@@ -236,7 +243,7 @@ def run(config: Dict) -> None:
     """Run training."""
     model = Strontium(config["model"])
     train_dataloader = DataLoader(
-        LNBDataset(mask_fn=mask_fn, **config["data"]), **config["dataloader"]
+        LNBDataset(mask_fn=mask_fn, **config["data"]), **config["dataloader"],
     )
     # Build validation data loaders
     val_data_config = config["data"].copy()
@@ -249,7 +256,7 @@ def run(config: Dict) -> None:
         val_data_config["name"] = name
         val_data_config["csv_name"] = f"validation_{name}.csv"
         val_dataloader = DataLoader(
-            LNBDataset(mask_fn=mask_fn, **val_data_config), **val_loader_config
+            LNBDataset(mask_fn=mask_fn, **val_data_config), **val_loader_config,
         )
         val_dataloaders.append(val_dataloader)
 
@@ -258,7 +265,7 @@ def run(config: Dict) -> None:
         if torch.cuda.is_available()
         else "mps"
         if torch.backends.mps.is_built()
-        else "cpu"
+        else "cpu",
     )
     # Run training
     train_val_loop(
@@ -274,17 +281,17 @@ def main() -> None:
     """Main function to run a train with wandb."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--config_path", type=str, required=False, default="config/strontium/base.yaml"
+        "--config_path", type=str, required=False, default="config/strontium/base.yaml",
     )
     args = parser.parse_args()
 
     with open(args.config_path, encoding="utf-8") as cfg_file:
         config = yaml.safe_load(cfg_file)
     # New id (for model name)
-    run_id = np.random.randint(1000000)
+    run_id = max(int(name) for name in os.listdir("../models/strontium")) + 1
     config["run_id"] = run_id
     wandb.init(
-        project="lnb", entity="leaf_nothing_behind", group="strontium", config=config
+        project="lnb", entity="leaf_nothing_behind", group="strontium", config=config,
     )
     run(dict(wandb.config))
     wandb.finish()
