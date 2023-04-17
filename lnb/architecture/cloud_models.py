@@ -131,66 +131,77 @@ class MlCloudModel(BaseCloudModel):
     """Full ML module for cloud removal on t, given t-1 and both masks"""
 
     def __init__(
-            self,
-            cr_config: Dict,
-            model_config: Dict,
-            base_model) -> None:
+        self,
+        base_model: Atom,
+        model_config: Optional[Dict] = None,
+    ) -> None:
         super().__init__(base_model=base_model, model_config=model_config)
         # Blocks
-        self.mask_layers = self._build_conv(cr_config["mask_conv_config"], "mask_conv")
-        self.other_mask_layers = self._build_conv(
-            cr_config["other_mask_config"], "other_mask")
-        self.cr1_layers = self._build_conv(cr_config["cr1_config"], "cr_1")
-        self.cr2_layers = self._build_conv(cr_config["cr2_config"], "cr_2")
+        self.mask_layer = self._build_conv(
+            base_model.config["mask_module_dim"][0],
+            model_config["cloud_mask"]["out_dim"],
+            model_config["cloud_mask"]["kernel"],
+            model_config["cloud_mask"]["relu"],
+            "cloud_mask_conv")
+        self.other_mask_layer = self._build_conv(
+            base_model.config["mask_module_dim"][0],
+            model_config["other_mask"]["out_dim"],
+            model_config["other_mask"]["kernel"],
+            model_config["other_mask"]["relu"],
+            "other_mask_conv")
 
-    def _build_conv(self, conv_config, name) -> nn.ModuleList:
+        concat_dim = (2 + model_config["other_mask"]["out_dim"]
+                      + model_config["cloud_mask"]["out_dim"])
+
+        self.cr1_layer = self._build_conv(
+            concat_dim,
+            model_config["cr1_config"]["out_dim"],
+            model_config["cr1_config"]["kernel"],
+            model_config["cr1_config"]["relu"],
+            "conv1")
+
+        self.cr2_layer = self._build_conv(
+            model_config["cr1_config"]["out_dim"] + 1,
+            model_config["cr2_config"]["out_dim"],
+            model_config["cr2_config"]["kernel"],
+            model_config["cr2_config"]["relu"],
+            "conv2")
+
+    def _build_conv(self, in_dim, out_dim, kernel, relu, name) -> nn.ModuleList:
         """Return encoder layers list."""
-        channels = conv_config["conv"]
-        encoder_layers = nn.ModuleList()
-        for i in range(len(channels) - 1):
-            block = nn.Sequential()
-            block.add_module(
-                f"{name}_conv_{i + 1}_1",
-                nn.Conv2d(
-                    channels[i],
-                    channels[i + 1],
-                    kernel_size=conv_config["kernel"],
-                    stride=1,
-                    padding="same",
-                ),
-            )
-            block.add_module(f"{name}_relu_{i + 1}_{1}", nn.ReLU())
-            # BatchNorm and dropout
-            block.add_module(f"{name}_bn_{i + 1}", nn.BatchNorm2d(channels[i + 1]))
-            block.add_module(
-                f"{name}_dropout_{i + 1}",
-                nn.Dropout(
-                    conv_config["dropout_rate"]))
-            encoder_layers.append(block)
-        return encoder_layers
+        block = nn.Sequential()
+        block.add_module(
+            f"{name}_conv",
+            nn.Conv2d(
+                in_dim,
+                out_dim,
+                kernel_size=kernel,
+                stride=1,
+                padding="same",
+            ),
+        )
+        if relu:
+            block.add_module(f"{name}_relu", nn.ReLU())
+        return block
 
     def process_cloud(self, lai_cloud: torch.Tensor, lai_other: torch.Tensor,
                       mask_cloud: torch.Tensor, mask_other: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """Forward pass."""
         # lai_mask_layers
-        for block in self.lai_mask_layers:
-            mask_cloud = block(mask_cloud)
+        mask_cloud_emb = self.mask_layer(mask_cloud)
 
         # substitute_lai_mask_layers
-        for block in self.substitute_lai_mask_layers:
-            mask_other = block(mask_other)
+        mask_other_emb = self.other_mask_layer(mask_other)
 
-        x = torch.cat([lai_cloud, mask_cloud, lai_other, mask_other], dim=2)
+        cr1 = torch.cat([lai_cloud, mask_cloud_emb, lai_other, mask_other_emb], dim=1)
         # conv_1_layers
-        for block in self.conv_1_layers:
-            x = block(x)
+        cr1 = self.cr1_layer(cr1)
 
-        x = torch.cat([x, lai_cloud], dim=1)
+        lai_de_clouded = torch.cat([cr1, lai_cloud], dim=1)
         # conv_2_layers
-        for block in self.conv_2_layers:
-            x = block(x)
+        lai_de_clouded = self.cr2_layer(lai_de_clouded)
 
-        return x, lai_cloud  # LAI de-clouded
+        return lai_de_clouded, mask_cloud  # LAI de-clouded
 
 
 if __name__ == '__main__':
