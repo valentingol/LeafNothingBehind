@@ -74,6 +74,7 @@ def train_step(
     # Forward pass and loss computation
     optimizer.zero_grad()
     lai_pred, lai_pred2 = model(**parsed_data["input_data"])
+    print("Training proportion ", model.proportion)
     loss = mse_loss(lai_pred=lai_pred, **parsed_data["target_data"])
     if interm_supervis:
         lai_target_interm = torch.cat(
