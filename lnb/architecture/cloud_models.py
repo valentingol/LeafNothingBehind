@@ -76,8 +76,6 @@ class BaseCloudModel(nn.Module):
     @abc.abstractmethod
     def process_cloud(
         self,
-        s1_data_lai: torch.Tensor,
-        s1_data_other: torch.Tensor,
         lai_cloud: torch.Tensor,
         lai_other: torch.Tensor,
         mask_cloud: torch.Tensor,
@@ -175,7 +173,8 @@ class MlCloudModel(BaseCloudModel):
         )
         # Dimension of the LAI + mask_embedding concatenation before LAI conv block
         in_lai_dim = (2 + 2
-                      * model_config["mask_layer"]["out_channels"])
+                      * model_config["mask_layer"]["out_channels"] + 2
+                      * model_config["s1_layers"]["out_channels"])
         self.conv_block_lai = self._build_block(
             channels=[in_lai_dim] + model_config["conv_block_lai"]["channels"],
             kernels=model_config["conv_block_lai"]["kernel_sizes"],
@@ -183,7 +182,7 @@ class MlCloudModel(BaseCloudModel):
 
         # Mask branch
         # Dimension of the mask concatenation before mask conv block
-        in_mask_dim = 2 * base_model.config["mask_module_dim"][0] + 2
+        in_mask_dim = base_model.config["mask_module_dim"][0] + 2
         self.conv_block_mask = self._build_block(
             channels=[in_mask_dim] + model_config["conv_block_mask"]["channels"],
             kernels=model_config["conv_block_mask"]["kernel_sizes"],
@@ -223,20 +222,20 @@ class MlCloudModel(BaseCloudModel):
         mask_cloud_emb = self.cloud_mask_layer(mask_cloud)
         mask_other_emb = self.other_mask_layer(mask_other)
 
-        # s1_data_lai_emb = self.s1_lai_layer(s1_data_lai)
-        # s1_data_other_emb = self.s1_other_layer(s1_data_other)
+        s1_data_lai_emb = self.s1_lai_layer(s1_data_lai)
+        s1_data_other_emb = self.s1_other_layer(s1_data_other)
 
         input1 = torch.cat([lai_cloud,
                             mask_cloud_emb,
                             lai_other,
-                            mask_other_emb],
-                           # s1_data_lai_emb,
-                           # s1_data_other_emb],
+                            mask_other_emb,
+                            s1_data_lai_emb,
+                            s1_data_other_emb],
                            dim=1)
 
         lai_de_clouded = self.conv_block_lai(input1)
         # Mask branch
-        input2 = torch.cat([mask_cloud, lai_cloud, mask_other, lai_de_clouded], dim=1)
+        input2 = torch.cat([mask_cloud, lai_cloud, lai_de_clouded], dim=1)
         mask_de_clouded = self.conv_block_mask(input2)
 
         return lai_de_clouded, mask_de_clouded  # LAI de-clouded, mask
@@ -275,10 +274,10 @@ class MixCloudModel(MlCloudModel):
         mask_cloud: torch.Tensor,
         mask_other: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        lai_cloud, mask_cloud = self._manual_embeding(lai_cloud,
-                                                      lai_other,
-                                                      mask_cloud,
-                                                      mask_other)
+        # lai_cloud, mask_cloud = self._manual_embeding(lai_cloud,
+        #                                               lai_other,
+        #                                               mask_cloud,
+        #                                               mask_other)
         """Forward pass."""
         # LAI branch
         mask_cloud_emb = self.cloud_mask_layer(mask_cloud)
@@ -289,7 +288,7 @@ class MixCloudModel(MlCloudModel):
 
         lai_de_clouded = self.conv_block_lai(input1)
         # Mask branch
-        input2 = torch.cat([mask_cloud, lai_cloud, mask_other, lai_de_clouded], dim=1)
+        input2 = torch.cat([mask_cloud, lai_cloud, lai_de_clouded], dim=1)
         mask_de_clouded = self.conv_block_mask(input2)
 
         return lai_de_clouded, mask_de_clouded  # LAI de-clouded, mask
