@@ -175,8 +175,7 @@ class MlCloudModel(BaseCloudModel):
         )
         # Dimension of the LAI + mask_embedding concatenation before LAI conv block
         in_lai_dim = (2 + 2
-                      * model_config["mask_layer"]["out_channels"] + 2
-                      * model_config["s1_layers"]["out_channels"])
+                      * model_config["mask_layer"]["out_channels"])
         self.conv_block_lai = self._build_block(
             channels=[in_lai_dim] + model_config["conv_block_lai"]["channels"],
             kernels=model_config["conv_block_lai"]["kernel_sizes"],
@@ -224,15 +223,15 @@ class MlCloudModel(BaseCloudModel):
         mask_cloud_emb = self.cloud_mask_layer(mask_cloud)
         mask_other_emb = self.other_mask_layer(mask_other)
 
-        s1_data_lai_emb = self.s1_lai_layer(s1_data_lai)
-        s1_data_other_emb = self.s1_other_layer(s1_data_other)
+        # s1_data_lai_emb = self.s1_lai_layer(s1_data_lai)
+        # s1_data_other_emb = self.s1_other_layer(s1_data_other)
 
         input1 = torch.cat([lai_cloud,
                             mask_cloud_emb,
                             lai_other,
-                            mask_other_emb,
-                            s1_data_lai_emb,
-                            s1_data_other_emb],
+                            mask_other_emb],
+                           # s1_data_lai_emb,
+                           # s1_data_other_emb],
                            dim=1)
 
         lai_de_clouded = self.conv_block_lai(input1)

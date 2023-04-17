@@ -15,7 +15,7 @@ model:
     out_channels: 2 # [in_dim, out_dim]
     kernel_size: 3 # [in_dim, out_dim]
   conv_block_lai:
-    channels: [12, 1]  # number of conv layers is len(channels)
+    channels: [24, 12, 1]  # number of conv layers is len(channels)
     kernel_sizes: [7, 7, 7]
   conv_block_mask:
     channels: [24, 12, 6]  # number of conv layers is len(channels)
