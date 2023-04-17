@@ -164,7 +164,7 @@ class MlCloudModel(BaseCloudModel):
 
         # Mask branch
         # Dimension of the mask concatenation before mask conv block
-        in_mask_dim = 2 * base_model.config["mask_module_dim"][0] + 2
+        in_mask_dim = base_model.config["mask_module_dim"][0] + 2
         self.conv_block_mask = self._build_block(
             channels=[in_mask_dim] + model_config["conv_block_mask"]["channels"],
             kernels=model_config["conv_block_mask"]["kernel_sizes"],
@@ -260,7 +260,7 @@ class MixCloudModel(MlCloudModel):
 
         lai_de_clouded = self.conv_block_lai(input1)
         # Mask branch
-        input2 = torch.cat([mask_cloud, lai_cloud, mask_other, lai_de_clouded], dim=1)
+        input2 = torch.cat([mask_cloud, lai_cloud, lai_de_clouded], dim=1)
         mask_de_clouded = self.conv_block_mask(input2)
 
         return lai_de_clouded, mask_de_clouded  # LAI de-clouded, mask
