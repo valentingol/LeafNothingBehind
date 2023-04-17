@@ -148,6 +148,20 @@ class MlCloudModel(BaseCloudModel):
         super().__init__(base_model=base_model, model_config=model_config)
         if model_config is None:
             raise ValueError("model_config is required for MlCloudModel.")
+
+        # S1 LAI branch
+        self.s1_lai_layer = nn.Conv2d(
+            in_channels=base_model.config["s1_ae_config"]["in_dim"],
+            padding='same',
+            **model_config['s1_layers'],
+        )
+        # S1 other branch
+        self.s1_other_layer = nn.Conv2d(
+            in_channels=base_model.config["s1_ae_config"]["in_dim"],
+            padding='same',
+            **model_config['s1_layers'],
+        )
+
         # LAI branch
         self.cloud_mask_layer = nn.Conv2d(
             in_channels=base_model.config["mask_module_dim"][0],
@@ -162,7 +176,7 @@ class MlCloudModel(BaseCloudModel):
         # Dimension of the LAI + mask_embedding concatenation before LAI conv block
         in_lai_dim = (2 + 2
                       * model_config["mask_layer"]["out_channels"] + 2
-                      * base_model.config["s1_ae_config"]["in_dim"])
+                      * model_config["s1_layers"]["out_channels"])
         self.conv_block_lai = self._build_block(
             channels=[in_lai_dim] + model_config["conv_block_lai"]["channels"],
             kernels=model_config["conv_block_lai"]["kernel_sizes"],
@@ -210,7 +224,15 @@ class MlCloudModel(BaseCloudModel):
         mask_cloud_emb = self.cloud_mask_layer(mask_cloud)
         mask_other_emb = self.other_mask_layer(mask_other)
 
-        input1 = torch.cat([lai_cloud, mask_cloud_emb, lai_other, mask_other_emb, s1_data_lai, s1_data_other],
+        s1_data_lai_emb = self.s1_lai_layer(s1_data_lai)
+        s1_data_other_emb = self.s1_other_layer(s1_data_other)
+
+        input1 = torch.cat([lai_cloud,
+                            mask_cloud_emb,
+                            lai_other,
+                            mask_other_emb,
+                            s1_data_lai_emb,
+                            s1_data_other_emb],
                            dim=1)
 
         lai_de_clouded = self.conv_block_lai(input1)
