@@ -156,7 +156,7 @@ class MlCloudModel(BaseCloudModel):
             **model_config['mask_layer'],
         )
         # Dimension of the LAI + mask_embedding concatenation before LAI conv block
-        in_lai_dim = 2 + 2*model_config["mask_layer"]["out_channels"]
+        in_lai_dim = 2 + 2 * model_config["mask_layer"]["out_channels"]
         self.conv_block_lai = self._build_block(
             channels=[in_lai_dim] + model_config["conv_block_lai"]["channels"],
             kernels=model_config["conv_block_lai"]["kernel_sizes"],
@@ -256,12 +256,14 @@ class MixCloudModel(MlCloudModel):
                                                       mask_cloud,
                                                       mask_other)
 
-        """Forward pass."""
-        # lai_mask_layers
-        mask_cloud_emb = self.mask_layer(mask_cloud)
-
-        # substitute_lai_mask_layers
+        mask_cloud_emb = self.cloud_mask_layer(mask_cloud)
         mask_other_emb = self.other_mask_layer(mask_other)
+        input1 = torch.cat([lai_cloud, mask_cloud_emb, lai_other, mask_other_emb],
+                           dim=1)
+        self.conv_block_lai(input1)
+        # Mask branch
+        input2 = torch.cat([mask_cloud, mask_other], dim=1)
+        self.conv_block_mask(input2)
 
         cr1 = torch.cat([lai_cloud, mask_cloud_emb, lai_other, mask_other_emb], dim=1)
         # conv_1_layers
