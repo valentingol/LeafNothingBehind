@@ -957,6 +957,13 @@ if __name__ == "__main__":
 
     print(f"FROM CLOUDY PERCENTAGE : {from_cloudy_percentage * 100}% ")
     print(f"PROPORTION CLOUDY VAL TEST : {prop_cloudy_val_test}% ")
+    print("Save CSV in :")
+    print(f"{os.path.join(DATA_PATH, 'train_regular.csv')}")
+    print(f"{os.path.join(DATA_PATH, 'train_cloudy.csv')}")
+    print(f"{os.path.join(DATA_PATH, 'validation_regular.csv')}")
+    print(f"{os.path.join(DATA_PATH, 'test_regular.csv')}")
+    print(f"{os.path.join(DATA_PATH, 'validation_mask_cloudy.csv')}")
+    print(f"{os.path.join(DATA_PATH, 'test_mask_cloudy.csv')}")
 
     if GRID_SHOW:
         plt.ion()
