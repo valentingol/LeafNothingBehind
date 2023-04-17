@@ -163,7 +163,8 @@ def train_val_loop(
             if i_batch % train_config["log_interval"] == 0:
                 current_t = time()
                 eta_str, eta_ep_str = get_time_log(
-                    current_t, start_t, epoch_start_t, i_batch, epoch, n_batch, n_epochs,
+                    current_t, start_t, epoch_start_t, i_batch, epoch, n_batch,
+                    n_epochs,
                 )
                 print(
                     f"train loss batch: {loss.item():.4f} - eta epoch {eta_ep_str}"
@@ -276,7 +277,7 @@ def main() -> None:
     with open(args.config_path, encoding="utf-8") as cfg_file:
         config = yaml.safe_load(cfg_file)
     # New id (for model name)
-    run_id = np.random.randint(1000000)
+    run_id = max(int(name) for name in os.listdir("../models/aluminium")) + 1
     config["run_id"] = run_id
     wandb.init(
         project="lnb", entity="leaf_nothing_behind", group="aluminium", config=config,

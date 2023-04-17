@@ -1,4 +1,4 @@
-"""Training functions for Scandium."""
+"""Training functions for CloudModel with Scandium."""
 import argparse
 import os
 from time import time
@@ -125,9 +125,9 @@ def train_val_loop(
     """Training and validation loop."""
     # Save config
     run_id = config["run_id"]
-    os.makedirs(f"../models/scandium/{run_id}", exist_ok=True)
+    os.makedirs(f"../models/cloud_scandium/{run_id}", exist_ok=True)
     with open(
-        f"../models/scandium/{run_id}/config.yaml", "w", encoding="utf-8",
+        f"../models/cloud_scandium/{run_id}/config.yaml", "w", encoding="utf-8",
     ) as cfg_file:
         yaml.dump(dict(wandb.config), cfg_file)
     # Get training config params
@@ -167,7 +167,8 @@ def train_val_loop(
             if i_batch % train_config["log_interval"] == 0:
                 current_t = time()
                 eta_str, eta_ep_str = get_time_log(
-                    current_t, start_t, epoch_start_t, i_batch, epoch, n_batch, n_epochs,
+                    current_t, start_t, epoch_start_t, i_batch, epoch, n_batch,
+                    n_epochs,
                 )
                 print(
                     f"train loss batch: {loss.item():.4f} - eta epoch {eta_ep_str}"
@@ -221,16 +222,17 @@ def train_val_loop(
         if (epoch + 1) % train_config["save_interval"] == 0:
             torch.save(
                 model.state_dict(),
-                f"../models/scandium/{run_id}/{run_id}_ep{epoch + 1}.pth",
+                f"../models/cloud_scandium/{run_id}/{run_id}_ep{epoch + 1}.pth",
             )
             print(
-                f"Model saved to ../models/scandium/{run_id}/"
+                f"Model saved to ../models/cloud_scandium/{run_id}/"
                 f"{run_id}_ep{epoch + 1}.pth",
             )
 
     # Save final model
-    torch.save(model.state_dict(), f"../models/scandium/{run_id}/{run_id}_last.pth")
-    print(f"Model saved to ../models/scandium/{run_id}/{run_id}_last.pth")
+    torch.save(model.state_dict(), "../models/cloud_scandium/"
+               f"{run_id}/{run_id}_last.pth")
+    print(f"Model saved to ../models/cloud_scandium/{run_id}/{run_id}_last.pth")
 
 
 def run(config: Dict) -> None:
@@ -289,17 +291,23 @@ def main() -> None:
     """Main function to run a train with wandb."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--config_path", type=str, required=False, default="config/cloud_models/mlcloud.yaml",
+        "--config_path",
+        type=str,
+        required=False,
+        default="config/cloud_models/mlcloud.yaml",
     )
     args = parser.parse_args()
 
     with open(args.config_path, encoding="utf-8") as cfg_file:
         config = yaml.safe_load(cfg_file)
     # New id (for model name)
-    run_id = np.random.randint(1000000)
+    run_id = max(int(name) for name in os.listdir("../models/cloud_scandium")) + 1
     config["run_id"] = run_id
     wandb.init(
-        project="lnb", entity="leaf_nothing_behind", group="scandium_mlcloud", config=config,
+        project="lnb",
+        entity="leaf_nothing_behind",
+        group="scandium_mlcloud",
+        config=config,
     )
     run(dict(wandb.config))
     wandb.finish()

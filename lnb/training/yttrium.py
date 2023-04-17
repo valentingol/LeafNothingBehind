@@ -1,8 +1,8 @@
 """Training functions for Yttrium."""
 import argparse
+import os
 from typing import Dict
 
-import numpy as np
 import torch
 import yaml
 from torch.utils.data import DataLoader
@@ -40,7 +40,7 @@ def parse_data_device(data: torch.Tensor, device: torch.device) -> ParsedDataTyp
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--config_path", type=str, required=False, default="config/yttrium/base.yaml"
+        "--config_path", type=str, required=False, default="config/yttrium/base.yaml",
     )
     args = parser.parse_args()
 
@@ -54,7 +54,7 @@ if __name__ == "__main__":
         if torch.cuda.is_available()
         else "mps"
         if torch.backends.mps.is_built()
-        else "cpu"
+        else "cpu",
     )
 
     # Model
@@ -92,12 +92,11 @@ if __name__ == "__main__":
     }
 
     # Train
-
-    run_id = np.random.randint(1000000)
+    run_id = max(int(name) for name in os.listdir("../models/yttrium")) + 1
     config["run_id"] = run_id
 
     wandb.init(
-        project="lnb", entity="leaf_nothing_behind", group="yttrium", config=config
+        project="lnb", entity="leaf_nothing_behind", group="yttrium", config=config,
     )
 
     trainer = Trainer(
