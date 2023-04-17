@@ -12,7 +12,7 @@ from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
 
 import wandb
-from lnb.architecture.cloud_models import MlCloudModel
+from lnb.architecture.cloud_models import MixCloudModel
 from lnb.architecture.models import Scandium
 from lnb.data.dataset import LNBDataset
 from lnb.training.log_utils import get_time_log
@@ -23,8 +23,7 @@ ParsedDataType = Dict[str, Dict[str, torch.Tensor]]
 
 def mask_fn(img_mask: np.ndarray) -> np.ndarray:
     """Transform an S2 mask (values between 1 and 9) to float32.
-    Channels are last dimension.
-    """
+    Channels are last dimension."""
     metric_mask = np.where(img_mask < 2, 0.0, 1.0)
     metric_mask = np.where(img_mask > 6, 0.0, metric_mask)
     mask_2 = np.where(img_mask == 2, 1.0, 0.0)
@@ -36,7 +35,7 @@ def mask_fn(img_mask: np.ndarray) -> np.ndarray:
 
 
 def parse_data_device(
-    data: torch.Tensor, glob: torch.Tensor, device: torch.device,
+    data: torch.Tensor, glob: torch.Tensor, device: torch.device
 ) -> ParsedDataType:
     """Parse data from dataloader and put it on device."""
     # Parse data
@@ -127,7 +126,7 @@ def train_val_loop(
     run_id = config["run_id"]
     os.makedirs(f"../models/scandium/{run_id}", exist_ok=True)
     with open(
-        f"../models/scandium/{run_id}/config.yaml", "w", encoding="utf-8",
+        f"../models/scandium/{run_id}/config.yaml", "w", encoding="utf-8"
     ) as cfg_file:
         yaml.dump(dict(wandb.config), cfg_file)
     # Get training config params
@@ -148,18 +147,15 @@ def train_val_loop(
         model = model.train()
         epoch_start_t = time()
         train_losses = []
-        cloud_filter_prop = []
-        model.proportion = 0.0
         i_batch = 0  # iteration number in current epoch
         for data, glob in train_dataloader:
             i_batch += 1
             # Parse data and put it on device
             parsed_data = parse_data_device(data, glob, device)
             loss, loss2 = train_step(
-                model, optimizer, parsed_data, train_config["interm_supervis"],
+                model, optimizer, parsed_data, train_config["interm_supervis"]
             )
             train_losses.append(loss.item())
-            cloud_filter_prop.append(model.filter_prop)
             # Logs
             wandb.log({"train loss": loss.item()})
             if loss2 is not None:
@@ -167,20 +163,18 @@ def train_val_loop(
             if i_batch % train_config["log_interval"] == 0:
                 current_t = time()
                 eta_str, eta_ep_str = get_time_log(
-                    current_t, start_t, epoch_start_t, i_batch, epoch, n_batch, n_epochs,
+                    current_t, start_t, epoch_start_t, i_batch, epoch, n_batch, n_epochs
                 )
                 print(
                     f"train loss batch: {loss.item():.4f} - eta epoch {eta_ep_str}"
                     f"- eta {eta_str}     ",
                     end="\r",
                 )
+
         # Epoch train logs
-        print()
-        print("Cloud filter data proportion ",
-              sum(cloud_filter_prop) / len(cloud_filter_prop))
         mean_train_loss = sum(train_losses) / len(train_losses)
         wandb.log({"mean train loss": mean_train_loss})
-        print(f"Epoch {epoch + 1}/{n_epochs}, mean train loss {mean_train_loss:.4f}")
+        print(f"\nEpoch {epoch + 1}/{n_epochs}, mean train loss {mean_train_loss:.4f}")
 
         # Validation
         model = model.eval()
@@ -209,7 +203,7 @@ def train_val_loop(
             wandb.log({f"mean valid loss {val_name}": mean_valid_loss})
             print(
                 f"\nEpoch {epoch + 1}/{n_epochs}, mean valid loss "
-                f"{val_name} {mean_valid_loss:.4f}",
+                f"{val_name} {mean_valid_loss:.4f}"
             )
 
         # Free unused VRAM
@@ -225,7 +219,7 @@ def train_val_loop(
             )
             print(
                 f"Model saved to ../models/scandium/{run_id}/"
-                f"{run_id}_ep{epoch + 1}.pth",
+                f"{run_id}_ep{epoch + 1}.pth"
             )
 
     # Save final model
@@ -240,7 +234,7 @@ def run(config: Dict) -> None:
         if torch.cuda.is_available()
         else "mps"
         if torch.backends.mps.is_built()
-        else "cpu",
+        else "cpu"
     )
     base_model = Scandium(config["base_model"])
     base_model.load_state_dict(
@@ -251,14 +245,14 @@ def run(config: Dict) -> None:
     for param in base_model.parameters():
         param.requires_grad = False
     # Cloud model
-    model = MlCloudModel(base_model=base_model, model_config=config["model"])
+    model = MixCloudModel(base_model=base_model, model_config=config["model"])
     model = model.to(device)
     # Print number of parameters
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Model has {n_params} parameters")
 
     train_dataloader = DataLoader(
-        LNBDataset(mask_fn=mask_fn, **config["data"]), **config["dataloader"],
+        LNBDataset(mask_fn=mask_fn, **config["data"]), **config["dataloader"]
     )
     # Build validation data loaders
     val_data_config = config["data"].copy()
@@ -267,11 +261,11 @@ def run(config: Dict) -> None:
     val_loader_config["shuffle"] = False  # No shuffle for validation
     val_loader_config["batch_size"] = 16  # Hard-coded batch size for validation
     val_dataloaders = []
-    for name in ["mask_cloudy", "regular"]:
+    for name in ["mask_cloudy"]:
         val_data_config["name"] = name
         val_data_config["csv_name"] = f"validation_{name}.csv"
         val_dataloader = DataLoader(
-            LNBDataset(mask_fn=mask_fn, **val_data_config), **val_loader_config,
+            LNBDataset(mask_fn=mask_fn, **val_data_config), **val_loader_config
         )
         val_dataloaders.append(val_dataloader)
 
@@ -289,7 +283,7 @@ def main() -> None:
     """Main function to run a train with wandb."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--config_path", type=str, required=False, default="config/cloud_models/mlcloud.yaml",
+        "--config_path", type=str, required=False, default="config/scandium/base.yaml"
     )
     args = parser.parse_args()
 
@@ -299,7 +293,7 @@ def main() -> None:
     run_id = np.random.randint(1000000)
     config["run_id"] = run_id
     wandb.init(
-        project="lnb", entity="leaf_nothing_behind", group="scandium_mlcloud", config=config,
+        project="lnb", entity="leaf_nothing_behind", group="scandium_mlcloud", config=config
     )
     run(dict(wandb.config))
     wandb.finish()

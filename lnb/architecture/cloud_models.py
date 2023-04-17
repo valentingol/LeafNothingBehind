@@ -207,7 +207,7 @@ class MlCloudModel(BaseCloudModel):
 
         lai_de_clouded = self.conv_block_lai(input1)
         # Mask branch
-        input2 = torch.cat([mask_cloud, mask_other], dim=1)
+        input2 = torch.cat([mask_cloud, lai_cloud, lai_de_clouded], dim=1)
         mask_de_clouded = self.conv_block_mask(input2)
 
         return lai_de_clouded, mask_de_clouded  # LAI de-clouded, mask
