@@ -48,7 +48,7 @@ class BaseCloudModel(nn.Module):
             idx_recoverable = torch.where(
                 torch.sum(clouds_recoverable, dim=(2, 3)) > cloud_prop * 256**2,
             )
-            self.proportion += len(idx_recoverable[0]) // (2 * in_mask_lai_batch[0])
+            self.proportion += len(idx_recoverable[0]) / (2 * len(in_mask_lai_batch[0]))
         return idx_recoverable
 
     def forward(
