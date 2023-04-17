@@ -863,10 +863,14 @@ if __name__ == "__main__":
     np.random.seed(1)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--from_cloudy_percentage', type=int, required=True,
+    parser.add_argument('--from_cloudy_percentage', type=int, required=False,
                         default=2.5)
-    parser.add_argument('--prop_cloudy_val_test', type=int, required=True,
+    parser.add_argument('--prop_cloudy_val_test', type=int, required=False,
                         default=20)
+    parser.add_argument('--cloudy_in_VT_regular', type=str, required=False,
+                        default="False")
+    parser.add_argument('--cloudy_in_train_regular', type=str, required=False,
+                        default="True")
     args = parser.parse_args()
 
     from_cloudy_percentage = args.from_cloudy_percentage / 100
@@ -893,6 +897,12 @@ if __name__ == "__main__":
     val_regular_dataset, test_regular_dataset = split_val_test(val_test_regular_dataset)
 
     train_dataset = remove_dataset_from_another(grids, val_test_regular_dataset)
+
+    if args.cloudy_in_train_regular == 'True' or args.cloudy_in_train_regular == 'true':
+        train_dataset = join_dataset(train_cloudy_dataset, train_dataset)
+    if args.cloudy_in_VT_regular == 'True' or args.cloudy_in_VT_regular == 'true':
+        val_regular_dataset = join_dataset(val_cloudy_dataset, val_regular_dataset)
+        test_regular_dataset = join_dataset(test_cloudy_dataset, test_regular_dataset)
 
     print("========")
     print("Train dataset size =", get_dataset_size(train_dataset))
@@ -941,6 +951,9 @@ if __name__ == "__main__":
         grid_show(test_regular_dataset, "Test reg")
         grid_show(val_cloudy_dataset, "Val clo")
         grid_show(test_cloudy_dataset, "Test clo")
+
+    print("cloudy in train_regular", args.cloudy_in_train_regular)
+    print("cloudy in val_test_regular", args.cloudy_in_VT_regular)
 
     print(f"FROM CLOUDY PERCENTAGE : {from_cloudy_percentage * 100}% ")
     print(f"PROPORTION CLOUDY VAL TEST : {prop_cloudy_val_test}% ")
