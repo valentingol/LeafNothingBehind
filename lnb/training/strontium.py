@@ -68,33 +68,27 @@ def train_step(
     optimizer: torch.optim.Optimizer,
     parsed_data: ParsedDataType,
     interm_supervis: bool,
+    weight_2: float = 0.2,
+    weight_3: float = 0.2,
 ) -> Tuple:
     """Perform a training step."""
     # Forward pass and loss computation
     optimizer.zero_grad()
-    lai_pred, lai_pred2 = model(**parsed_data["input_data"])
+    lai_pred, lai_interm = model(**parsed_data["input_data"])
     loss = mse_loss(lai_pred=lai_pred, **parsed_data["target_data"])
     if interm_supervis:
-        lai_target_interm = torch.cat(
-            [
-                parsed_data["input_data"]["in_lai"],
-                parsed_data["target_data"]["lai_target"].unsqueeze(1),
-            ],
-            dim=1,
-        )
-        lai_target_mask_interm = torch.cat(
-            [
-                parsed_data["input_data"]["in_mask_lai"][:, :, 0:1],
-                parsed_data["target_data"]["lai_target"].unsqueeze(1),
-            ],
-            dim=1,
-        )
+        lai_pred2, lai_pred3 = lai_interm
+    
         loss2 = mse_loss(
             lai_pred=lai_pred2,
-            lai_target=lai_target_interm,
-            lai_target_mask=lai_target_mask_interm,
+            **parsed_data["target_data"]
         )
-        loss_total = loss + loss2
+        loss3 = mse_loss(
+            lai_pred=lai_pred3,
+            **parsed_data["target_data"]
+        )
+
+        loss_total = loss + weight_2 * loss2 + weight_3 * loss3
     else:
         loss2 = None
         loss_total = loss
@@ -141,6 +135,7 @@ def train_val_loop(
 
     model = model.to(device)
     start_t = time()
+    best_val_loss = float("inf")
     for epoch in range(n_epochs):
         # Training
         model = model.train()
@@ -152,7 +147,7 @@ def train_val_loop(
             # Parse data and put it on device
             parsed_data = parse_data_device(data, glob, device)
             loss, loss2 = train_step(
-                model, optimizer, parsed_data, train_config["interm_supervis"]
+                model, optimizer, parsed_data, train_config["interm_supervis"], train_config["weight_2"], train_config["weight_3"]
             )
             train_losses.append(loss.item())
             # Logs
@@ -221,6 +216,17 @@ def train_val_loop(
                 f"{run_id}_ep{epoch + 1}.pth"
             )
 
+        if mean_valid_loss < best_val_loss:
+            best_val_loss = mean_valid_loss
+            torch.save(
+                model.state_dict(),
+                f"../models/strontium/{run_id}/{run_id}_best.pth",
+            )
+            print(
+                f"Model saved to ../models/strontium/{run_id}/"
+                f"{run_id}_best.pth"
+            )
+            
     # Save final model
     torch.save(model.state_dict(), f"../models/strontium/{run_id}/{run_id}_last.pth")
     print(f"Model saved to ../models/strontium/{run_id}/{run_id}_last.pth")
