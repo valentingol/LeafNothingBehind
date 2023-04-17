@@ -127,6 +127,72 @@ class HumanCloudModel(BaseCloudModel):
         return out_lai, out_mask
 
 
+class MlCloudModel(BaseCloudModel):
+    """Full ML module for cloud removal on t, given t-1 and both masks"""
+
+    def __init__(
+            self,
+            cr_config: Dict,
+            model_config: Dict,
+            base_model) -> None:
+        super().__init__(base_model=base_model, model_config=model_config)
+        # Blocks
+        self.mask_layers = self._build_conv(cr_config["mask_conv_config"], "mask_conv")
+        self.other_mask_layers = self._build_conv(
+            cr_config["other_mask_config"], "other_mask")
+        self.cr1_layers = self._build_conv(cr_config["cr1_config"], "cr_1")
+        self.cr2_layers = self._build_conv(cr_config["cr2_config"], "cr_2")
+
+    def _build_conv(self, conv_config, name) -> nn.ModuleList:
+        """Return encoder layers list."""
+        channels = conv_config["conv"]
+        encoder_layers = nn.ModuleList()
+        for i in range(len(channels) - 1):
+            block = nn.Sequential()
+            block.add_module(
+                f"{name}_conv_{i + 1}_1",
+                nn.Conv2d(
+                    channels[i],
+                    channels[i + 1],
+                    kernel_size=conv_config["kernel"],
+                    stride=1,
+                    padding="same",
+                ),
+            )
+            block.add_module(f"{name}_relu_{i + 1}_{1}", nn.ReLU())
+            # BatchNorm and dropout
+            block.add_module(f"{name}_bn_{i + 1}", nn.BatchNorm2d(channels[i + 1]))
+            block.add_module(
+                f"{name}_dropout_{i + 1}",
+                nn.Dropout(
+                    conv_config["dropout_rate"]))
+            encoder_layers.append(block)
+        return encoder_layers
+
+    def process_cloud(self, lai_cloud: torch.Tensor, lai_other: torch.Tensor,
+                      mask_cloud: torch.Tensor, mask_other: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Forward pass."""
+        # lai_mask_layers
+        for block in self.lai_mask_layers:
+            mask_cloud = block(mask_cloud)
+
+        # substitute_lai_mask_layers
+        for block in self.substitute_lai_mask_layers:
+            mask_other = block(mask_other)
+
+        x = torch.cat([lai_cloud, mask_cloud, lai_other, mask_other], dim=2)
+        # conv_1_layers
+        for block in self.conv_1_layers:
+            x = block(x)
+
+        x = torch.cat([x, lai_cloud], dim=1)
+        # conv_2_layers
+        for block in self.conv_2_layers:
+            x = block(x)
+
+        return x, lai_cloud  # LAI de-clouded
+
+
 if __name__ == '__main__':
     class BaseModel(nn.Module):
         """Mock base model."""
