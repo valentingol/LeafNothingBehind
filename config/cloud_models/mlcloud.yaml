@@ -15,8 +15,8 @@ model:
     channels: [8, 1]  # number of conv layers is len(channels)
     kernel_sizes: [7, 7]
   conv_block_mask:
-    channels: [9, 6]  # number of conv layers is len(channels)
-    kernel_sizes: [5, 5]
+    channels: [24, 12, 6]  # number of conv layers is len(channels)
+    kernel_sizes: [5, 5, 5]
 base_model:
   s1_ae_config:  # U-Net-like architecture
     in_dim: 2  # always 2 (if input={VV, VH})
