@@ -226,7 +226,7 @@ def train_val_loop(
                 f"Model saved to ../models/strontium/{run_id}/"
                 f"{run_id}_best.pth"
             )
-            
+
     # Save final model
     torch.save(model.state_dict(), f"../models/strontium/{run_id}/{run_id}_last.pth")
     print(f"Model saved to ../models/strontium/{run_id}/{run_id}_last.pth")
@@ -235,6 +235,9 @@ def train_val_loop(
 def run(config: Dict) -> None:
     """Run training."""
     model = Strontium(config["model"])
+    if config["train"]["start_from_pretrained"]:
+        pretrained_path = os.path.join("../models/strontium", str(config["train"]["pretrained_run_id"]), f"{config['train']['pretrained_run_id']}_best.pth")
+        model.load_state_dict(torch.load(pretrained_path))
     train_dataloader = DataLoader(
         LNBDataset(mask_fn=mask_fn, **config["data"]), **config["dataloader"]
     )
@@ -281,7 +284,7 @@ def main() -> None:
     with open(args.config_path, encoding="utf-8") as cfg_file:
         config = yaml.safe_load(cfg_file)
     # New id (for model name)
-    run_id = np.random.randint(1000000)
+    run_id = 16062003 # np.random.randint(1000000)
     config["run_id"] = run_id
     wandb.init(
         project="lnb", entity="leaf_nothing_behind", group="strontium", config=config
