@@ -42,15 +42,15 @@ model:
 
 
 train:
-  learning_rate: 0.001
-  learning_rate_n_mult: 2  # number of times to decay lr (evenly spaced during the full training)
+  learning_rate: 0.00004 # 0.001
+  learning_rate_n_mult: 1 #2 # number of times to decay lr (evenly spaced during the full training)
   learning_rate_decay: 0.2  # lr *= decay at each decay step
-  n_epochs: 50
+  n_epochs: 40 # 30
   log_interval: 20  # in iterations
   save_interval: 5  # in epochs
-  interm_supervis: false  # intermediate supervision for AE
-  weight_2: 0.03
+  interm_supervis: true  # intermediate supervision for AE
+  weight_2: 0.03 # 0.1
   weight_3: 0.15
-  start_from_pretrained: true
-  pretrained_run_id: 16062002
+  start_from_pretrained: true # false
+  pretrained_run_id: 16062001
   

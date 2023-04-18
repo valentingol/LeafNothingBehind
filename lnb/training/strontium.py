@@ -284,7 +284,7 @@ def main() -> None:
     with open(args.config_path, encoding="utf-8") as cfg_file:
         config = yaml.safe_load(cfg_file)
     # New id (for model name)
-    run_id = 16062003 # np.random.randint(1000000)
+    run_id = 16062004 # np.random.randint(1000000)
     config["run_id"] = run_id
     wandb.init(
         project="lnb", entity="leaf_nothing_behind", group="strontium", config=config
