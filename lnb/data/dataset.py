@@ -116,7 +116,10 @@ class LNBDataset(Dataset):
         # Weather data
         self.use_weather = use_weather
         if self.use_weather:
-            self.weather_df = pd.read_csv(osp.join(self.dataset_path, "meteo_full.csv"))
+            self.weather_df = meteo.extract(self.series_df, output_folder=self.dataset_path)
+            self.weather_df = meteo.normalize(self.weather_df)
+
+
 
     def __len__(self) -> int:
         """Length of the dataset."""
@@ -167,9 +170,9 @@ class LNBDataset(Dataset):
                 weather_data = self._get_weather_vector(self.series_df.iloc[idx])
 
                 # Concatenate time info and weather data
-                time_info_unsq = torch.unsqueeze(time_info, dim=1)
-                time_info_unsq = torch.unsqueeze(time_info_unsq, dim=1)
-                weather_data = torch.cat([time_info_unsq, weather_data], dim=0)
+                # time_info_unsq = torch.unsqueeze(time_info, dim=1)
+                # time_info_unsq = torch.unsqueeze(time_info_unsq, dim=1)
+                weather_data = torch.cat([time_info, weather_data], dim=0)
                 return data, time_info, weather_data
             return data, time_info
         # Data augmentation
@@ -224,9 +227,10 @@ class LNBDataset(Dataset):
             )
 
             # Concatenate time info and weather data
-            time_info_unsq = torch.unsqueeze(time_info, dim=1)
-            time_info_unsq = torch.unsqueeze(time_info_unsq, dim=1)
-            weather_data = torch.cat([time_info_unsq, weather_data], dim=0)
+            # time_info_unsq = torch.unsqueeze(time_info, dim=1)
+            # time_info_unsq = torch.unsqueeze(time_info_unsq, dim=1)
+            # print(time_info_unsq.shape, weather_data.shape)
+            weather_data = torch.cat([time_info, weather_data], dim=0)
             return data, time_info, weather_data
         return data, time_info
 
@@ -252,17 +256,18 @@ class LNBDataset(Dataset):
         """Get weather data for a series of 3 file names."""
         # Get weather data
         location = meteo.decompose(series)[0]
-        weather = self.weather_df[self.weather_df["city"] == location]
+        features = ["temp_avg","temp_min","temp_max","precipitation","snow", "wind_speed", "wind_gust", "pressure"]
+        weather = self.weather_df[self.weather_df["city"] == location][features]
         # Reset index
         weather = weather.reset_index(drop=True)
         # Limit weather data to the 5 last entries
-        weather = weather.iloc[-5:]
+        weather = weather.iloc[-3:]
         # Convert weather to numpy array and remove city and date columns
-        weather = weather.drop(columns=["city", "date"])
+        # weather = weather.drop(columns=["city", "date"])
         weather = weather.to_numpy()
-        # Convert shape (5, 11) to (55, 1, 1)
+        # Convert shape (3, 8) to (3*8, 1, 1)
         weather = weather.reshape(-1)
-        weather = np.expand_dims(weather, axis=(1, 2))
+        # weather = np.expand_dims(weather, axis=(1, 2))
         weather = torch.from_numpy(weather).float()
         return weather
 

@@ -807,7 +807,7 @@ class Strontium(Atom):
         else:
             self.aluminium = Aluminium(model_config["aluminium_config"])
 
-        
+
         self.sodium_out_conv = self.sodium.ae.decoder_layers[-1]
         self.aluminium_out_conv = self.aluminium.ae.decoder_layers[-1]
 
@@ -858,6 +858,29 @@ class Strontium(Atom):
 
         return self.autoencoder(concat_all), (self.sodium_out_conv(sodium_out), self.aluminium_out_conv(aluminium_out))
 
+
+class Hassium(Strontium):
+
+    def __init__(self, model_config: Dict) -> None:
+        super(Hassium, self).__init__(model_config)
+
+        glob_size_sodium = model_config["sodium_config"]["glob_size"]
+        glob_size_aluminium = model_config["aluminium_config"]["glob_size"]
+
+        # Replace mlp properties of aluminium and sodium to match input size of glob
+        mlp_layers_sodium = model_config["sodium_config"]["mlp_layers"]
+        mlp_layers_aluminium = model_config["aluminium_config"]["mlp_layers"]
+
+        self.sodium.mlp = nn.Sequential(
+            nn.Linear(glob_size_sodium, mlp_layers_sodium[0]),
+            nn.ReLU(),
+            nn.Linear(mlp_layers_sodium[0], mlp_layers_sodium[1]),
+        )
+        self.aluminium.mlp = nn.Sequential(
+            nn.Linear(glob_size_aluminium, mlp_layers_aluminium[0]),
+            nn.ReLU(),
+            nn.Linear(mlp_layers_aluminium[0], mlp_layers_aluminium[1]),
+        )
 
 class Yttrium(Atom):
     """Yttrium model for LNB.
