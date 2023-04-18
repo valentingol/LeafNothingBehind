@@ -918,6 +918,101 @@ class Nimbostratusv5(Nimbostratus):
         return lai_remplaced, mask_de_clouded  # LAI de-clouded, mask
 
 
+class Nimbostratusv6(Nimbostratusv5):
+    def __init__(
+        self,
+        base_model: Atom,
+        model_config: Optional[Dict] = None,
+    ) -> None:
+        super().__init__(base_model=base_model, model_config=model_config)
+        if model_config is None:
+            raise ValueError("model_config is required for MlCloudModel.")
+
+        # Dimension of the LAI + mask_embedding concatenation before LAI conv block
+        in_lai_dim = 9
+        self.conv_block_recursive = self._build_block(
+            channels=[in_lai_dim] + model_config["conv_block_lai"]["channels"],
+            kernels=model_config["conv_block_lai"]["kernel_sizes"],
+        )
+
+    def _recursive_layers(
+        self,
+        nb_recursion: int,
+        s1_data_lai_emb: torch.Tensor,
+        s1_data_other_emb: torch.Tensor,
+        only_modified_mask_emb: torch.Tensor,
+        lai_de_clouded: torch.Tensor,
+        lai_cloud: torch.Tensor,
+        lai_other: torch.Tensor,
+    ):
+
+        input_lai_conv = torch.cat([lai_de_clouded,
+                                    lai_cloud,
+                                    only_modified_mask_emb,
+                                    lai_other,
+                                    s1_data_lai_emb,
+                                    s1_data_other_emb],
+                                   dim=1)
+
+        lai_de_clouded = self.conv_block_recursive(input_lai_conv)
+
+        if nb_recursion > 0:
+            return self._recursive_layers(
+                nb_recursion - 1,
+                s1_data_lai_emb,
+                s1_data_other_emb,
+                only_modified_mask_emb,
+                lai_de_clouded,
+                lai_cloud,
+                lai_other)
+        else:
+            return lai_de_clouded
+
+    def process_cloud(
+        self,
+        s1_data_lai: torch.Tensor,
+        s1_data_other: torch.Tensor,
+        lai_cloud: torch.Tensor,
+        lai_other: torch.Tensor,
+        mask_cloud: torch.Tensor,
+        mask_other: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Forward pass."""
+        # LAI branch
+        manual_mask_emb = (mask_cloud[:, 0:1] * mask_cloud
+                           + (1 - mask_cloud[:, 0:1]) * mask_other)
+        only_modified_mask = torch.logical_xor(manual_mask_emb, mask_cloud).float()
+        only_modified_mask_emb = self.cloud_mask_layer(only_modified_mask)
+
+        s1_data_lai_emb = self.s1_lai_layer(s1_data_lai)
+        s1_data_other_emb = self.s1_other_layer(s1_data_other)
+
+        input_lai_conv = torch.cat([lai_cloud,
+                                    only_modified_mask_emb,
+                                    lai_other,
+                                    s1_data_lai_emb,
+                                    s1_data_other_emb],
+                                   dim=1)
+
+        lai_de_clouded = self.conv_block_lai(input_lai_conv)
+
+        self._recursive_layers(
+            self.model_config["conv_block_lai"]["recursions"],
+            s1_data_lai_emb,
+            s1_data_other_emb,
+            only_modified_mask_emb,
+            lai_de_clouded,
+            lai_cloud,
+            lai_other)
+
+        # Mask branch
+
+        input2 = torch.cat([mask_cloud, lai_cloud, lai_de_clouded], dim=1)
+        mask_de_clouded = self.conv_block_mask(input2)
+
+        return lai_de_clouded, mask_de_clouded  # LAI de-clouded, mask
+
+
 if __name__ == '__main__':
     class BaseModel(nn.Module):
         """Mock base model."""
