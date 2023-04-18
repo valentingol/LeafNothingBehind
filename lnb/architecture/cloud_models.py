@@ -858,6 +858,13 @@ class Nimbostratusv5(Nimbostratus):
             kernel_size=3
         )
 
+        # Dimension of the LAI + mask_embedding concatenation before LAI conv block
+        in_lai_dim = 8
+        self.conv_block_lai_2 = self._build_block(
+            channels=[in_lai_dim] + model_config["conv_block_lai"]["channels"],
+            kernels=model_config["conv_block_lai"]["kernel_sizes"],
+        )
+
     def process_cloud(
         self,
         s1_data_lai: torch.Tensor,
@@ -899,7 +906,7 @@ class Nimbostratusv5(Nimbostratus):
                             s1_data_other_emb],
                            dim=1)
 
-        lai_de_clouded = self.conv_block_lai(input1)
+        lai_de_clouded = self.conv_block_lai_2(input1)
 
         lai_remplaced[to_remplace] = lai_de_clouded[to_remplace]
 
