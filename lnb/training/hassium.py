@@ -187,10 +187,10 @@ def train_val_loop(
             n_batch_val = len(val_dataloader)
             valid_losses = []
             i_batch = 0
-            for data, glob in val_dataloader:
+            for data, glob, weather_data in val_dataloader:
                 i_batch += 1
                 # Parse data and put it on device
-                parsed_data = parse_data_device(data, glob, device)
+                parsed_data = parse_data_device(data, glob, weather_data, device)
                 loss = valid_step(model, parsed_data)
                 valid_losses.append(loss.item())
                 # Logs
