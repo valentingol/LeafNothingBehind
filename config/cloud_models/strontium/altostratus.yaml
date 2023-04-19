@@ -1,9 +1,9 @@
 data:
   dataset_path: '../data'
-  csv_name: 'train_regular.csv'
+  csv_name: 'train_cloudy.csv'
   grid_augmentation: false
 dataloader:
-  num_workers: 8
+  num_workers: 6
   batch_size: 16
   shuffle: true
   prefetch_factor: 2
@@ -17,6 +17,7 @@ model:
   conv_block_lai:
     channels: [24, 12, 1]  # number of conv layers is len(channels)
     kernel_sizes: [7, 7, 7]
+    recursions: 6
   conv_block_mask:
     channels: [24, 12, 6]  # number of conv layers is len(channels)
     kernel_sizes: [5, 5, 5, 5]

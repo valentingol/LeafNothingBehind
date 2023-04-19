@@ -527,20 +527,20 @@ class Altostratus(BaseCloudModel):
 
         # S1 LAI branch
         self.s1_lai_layer = nn.Conv2d(
-            in_channels=base_model.config["s1_ae_config"]["in_dim"],
+            in_channels=2,
             padding='same',
             **model_config['s1_layers'],
         )
         # S1 other branch
         self.s1_other_layer = nn.Conv2d(
-            in_channels=base_model.config["s1_ae_config"]["in_dim"],
+            in_channels=2,
             padding='same',
             **model_config['s1_layers'],
         )
 
         # LAI branch
         self.cloud_mask_layer = nn.Conv2d(
-            in_channels=base_model.config["mask_module_dim"][0],
+            in_channels=6,
             padding='same',
             **model_config['mask_layer'],
         )
@@ -553,7 +553,7 @@ class Altostratus(BaseCloudModel):
 
         # Mask branch
         # Dimension of the mask concatenation before mask conv block
-        in_mask_dim = base_model.config["mask_module_dim"][0] + 2
+        in_mask_dim = 6 + 2
         self.conv_block_mask = self._build_block(
             channels=[in_mask_dim] + model_config["conv_block_mask"]["channels"],
             kernels=model_config["conv_block_mask"]["kernel_sizes"],
