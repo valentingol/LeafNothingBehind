@@ -152,6 +152,8 @@ class HumanCloudModel(BaseCloudModel):
 
             out_mask = (mask_cloud[:, 0:1] * mask_cloud
                         + (1 - mask_cloud[:, 0:1]) * mask_other)
+            out_mask = (mask_cloud[:, 0:1] * mask_cloud
+                        + (1 - mask_cloud[:, 0:1]) * mask_other)
 
         return out_lai, out_mask
 
@@ -353,6 +355,56 @@ class Cumulus(MlCloudModel):
         mask_cloud: torch.Tensor,
         mask_other: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Forward pass."""
+        # LAI branch
+        mask_cloud_emb = self.cloud_mask_layer(mask_cloud)
+        mask_other_emb = self.other_mask_layer(mask_other)
+        input1 = torch.cat([lai_cloud, mask_cloud_emb, lai_other, mask_other_emb],
+                           dim=1)
+        out_lai = self.conv_block_lai(input1)
+        # Mask branch
+        input2 = torch.cat([mask_cloud, mask_other], dim=1)
+        out_mask = self.conv_block_mask(input2)
+
+        return out_lai, out_mask  # LAI de-clouded, mask
+
+
+class MixCloudModel(MlCloudModel):
+    """Full ML module for cloud removal on t, given t-1 and both masks."""
+
+    def _manual_embeding(
+        self,
+        lai_cloud: torch.Tensor,
+        lai_other: torch.Tensor,
+        mask_cloud: torch.Tensor,
+        mask_other: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        with torch.no_grad():
+            # Normalize lai_other like lai_cloud
+            cloud_mean = torch.mean(lai_cloud, dim=(2, 3), keepdim=True)
+            cloud_std = torch.std(lai_cloud, dim=(2, 3), keepdim=True)
+            other_mean = torch.mean(lai_other, dim=(2, 3), keepdim=True)
+            other_std = torch.std(lai_other, dim=(2, 3), keepdim=True)
+            lai_other = (lai_other - other_mean) / (other_std + 1e-6)
+            lai_other = lai_other * cloud_std + cloud_mean
+
+            out_lai = (mask_cloud[:, 0:1] * lai_cloud
+                       + (1 - mask_cloud[:, 0:1]) * lai_other)
+            out_mask = mask_cloud
+        return out_lai, out_mask
+
+    def process_cloud(
+        self,
+        lai_cloud: torch.Tensor,
+        lai_other: torch.Tensor,
+        mask_cloud: torch.Tensor,
+        mask_other: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        lai_cloud, mask_cloud = self._manual_embeding(lai_cloud,
+                                                      lai_other,
+                                                      mask_cloud,
+                                                      mask_other)
+
         """Forward pass."""
         # LAI branch
         mask_cloud_emb = self.cloud_mask_layer(mask_cloud)

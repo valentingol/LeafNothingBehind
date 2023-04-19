@@ -4,7 +4,7 @@ data:
   grid_augmentation: false
 dataloader:
   num_workers: 8
-  batch_size: 16
+  batch_size: 32
   shuffle: true
   prefetch_factor: 2
 model:
@@ -48,4 +48,6 @@ train:
   n_epochs: 30
   log_interval: 20  # in iterations
   save_interval: 5  # in epochs
-  interm_supervis: false  # intermediate supervision for AE
+  interm_supervis: true  # intermediate supervision for AE
+  weight_2: 0.1
+  weight_3: 0.15
