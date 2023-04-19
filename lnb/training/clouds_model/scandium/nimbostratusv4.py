@@ -12,7 +12,7 @@ from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
 
 import wandb
-from lnb.architecture.cloud_models import Nimbostratusv5
+from lnb.architecture.cloud_models import Nimbostratusv4
 from lnb.architecture.models import Scandium
 from lnb.data.dataset import LNBDataset
 from lnb.training.log_utils import get_time_log
@@ -238,14 +238,14 @@ def run(config: Dict) -> None:
     )
     base_model = Scandium(config["base_model"])
     base_model.load_state_dict(
-        torch.load("../models/scandium/295789/295789_last.pth", map_location=device),
+        torch.load(config['model']['base_model_to_load'], map_location=device),
     )
 
     # Freeze base model
     for param in base_model.parameters():
         param.requires_grad = False
     # Cloud model
-    model = Nimbostratusv5(base_model=base_model, model_config=config["model"])
+    model = Nimbostratusv4(base_model=base_model, model_config=config["model"])
     model = model.to(device)
     # Print number of parameters
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)

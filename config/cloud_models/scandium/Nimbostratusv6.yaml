@@ -8,6 +8,7 @@ dataloader:
   shuffle: true
   prefetch_factor: 2
 model:
+  base_model_to_load: "../models/scandium/295789/295789_last.pth"
   s1_layers:
     out_channels: 2 # [in_dim, out_dim]
     kernel_size: 5 # [in_dim, out_dim]

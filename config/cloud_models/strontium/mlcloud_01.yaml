@@ -54,8 +54,6 @@ base_model:
     conv_per_layer: 2
     residual: true
     dropout_rate: 0.0
-
-
 train:
   learning_rate: 0.001
   learning_rate_n_mult: 2  # number of times to decay lr (evenly spaced during the full training)

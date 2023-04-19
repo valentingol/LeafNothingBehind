@@ -97,6 +97,8 @@ class BaseCloudModel(nn.Module):
     @abc.abstractmethod
     def process_cloud(
         self,
+        s1_data_lai: torch.Tensor,
+        s1_data_other: torch.Tensor,
         lai_cloud: torch.Tensor,
         lai_other: torch.Tensor,
         mask_cloud: torch.Tensor,
@@ -132,6 +134,8 @@ class HumanCloudModel(BaseCloudModel):
     # pylint: disable=unused-argument
     def process_cloud(
         self,
+        s1_data_lai: torch.Tensor,
+        s1_data_other: torch.Tensor,
         lai_cloud: torch.Tensor,
         lai_other: torch.Tensor,
         mask_cloud: torch.Tensor,
@@ -156,7 +160,66 @@ class HumanCloudModel(BaseCloudModel):
         return out_lai, out_mask
 
 
-class MlCloudModel(BaseCloudModel):
+class MlCloudModel_basic(BaseCloudModel):
+    def __init__(
+        self,
+        base_model: Atom,
+        model_config: Optional[Dict] = None,
+    ) -> None:
+        super().__init__(base_model=base_model, model_config=model_config)
+        if model_config is None:
+            raise ValueError("model_config is required for MlCloudModel.")
+
+        # LAI branch
+        self.cloud_mask_layer = nn.Conv2d(
+            in_channels=6,
+            padding='same',
+            **model_config['mask_layer'],
+        )
+        self.other_mask_layer = nn.Conv2d(
+            in_channels=6,
+            padding='same',
+            **model_config['mask_layer'],
+        )
+        # Dimension of the LAI + mask_embedding concatenation before LAI conv block
+        in_lai_dim = 1 + 1 + (2 * 2)
+        self.conv_block_lai = self._build_block(
+            channels=[in_lai_dim] + model_config["conv_block_lai"]["channels"],
+            kernels=model_config["conv_block_lai"]["kernel_sizes"],
+        )
+
+        # Mask branch
+        # Dimension of the mask concatenation before mask conv block
+        in_mask_dim = 2 * 6
+        self.conv_block_mask = self._build_block(
+            channels=[in_mask_dim] + model_config["conv_block_mask"]["channels"],
+            kernels=model_config["conv_block_mask"]["kernel_sizes"],
+        )
+
+    def process_cloud(
+        self,
+        s1_data_lai: torch.Tensor,
+        s1_data_other: torch.Tensor,
+        lai_cloud: torch.Tensor,
+        lai_other: torch.Tensor,
+        mask_cloud: torch.Tensor,
+        mask_other: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Forward pass."""
+        # LAI branch
+        mask_cloud_emb = self.cloud_mask_layer(mask_cloud)
+        mask_other_emb = self.other_mask_layer(mask_other)
+        input1 = torch.cat([lai_cloud, mask_cloud_emb, lai_other, mask_other_emb],
+                           dim=1)
+        out_lai = self.conv_block_lai(input1)
+        # Mask branch
+        input2 = torch.cat([mask_cloud, mask_other], dim=1)
+        out_mask = self.conv_block_mask(input2)
+
+        return out_lai, out_mask
+
+
+class MlCloudModel(MlCloudModel_basic):
     """Full ML module for cloud removal on t, given t-1 and both masks."""
 
     def __init__(
@@ -170,42 +233,15 @@ class MlCloudModel(BaseCloudModel):
 
         # S1 LAI branch
         self.s1_lai_layer = nn.Conv2d(
-            in_channels=base_model.config["s1_ae_config"]["in_dim"],
+            in_channels=2,
             padding='same',
             **model_config['s1_layers'],
         )
         # S1 other branch
         self.s1_other_layer = nn.Conv2d(
-            in_channels=base_model.config["s1_ae_config"]["in_dim"],
+            in_channels=2,
             padding='same',
             **model_config['s1_layers'],
-        )
-
-        # LAI branch
-        self.cloud_mask_layer = nn.Conv2d(
-            in_channels=base_model.config["mask_module_dim"][0],
-            padding='same',
-            **model_config['mask_layer'],
-        )
-        self.other_mask_layer = nn.Conv2d(
-            in_channels=base_model.config["mask_module_dim"][0],
-            padding='same',
-            **model_config['mask_layer'],
-        )
-        # Dimension of the LAI + mask_embedding concatenation before LAI conv block
-        in_lai_dim = (2 + model_config["mask_layer"]["out_channels"] + 2
-                      * model_config["s1_layers"]["out_channels"])
-        self.conv_block_lai = self._build_block(
-            channels=[in_lai_dim] + model_config["conv_block_lai"]["channels"],
-            kernels=model_config["conv_block_lai"]["kernel_sizes"],
-        )
-
-        # Mask branch
-        # Dimension of the mask concatenation before mask conv block
-        in_mask_dim = base_model.config["mask_module_dim"][0] + 2
-        self.conv_block_mask = self._build_block(
-            channels=[in_mask_dim] + model_config["conv_block_mask"]["channels"],
-            kernels=model_config["conv_block_mask"]["kernel_sizes"],
         )
 
     def process_cloud(

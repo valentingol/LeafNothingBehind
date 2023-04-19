@@ -1,7 +1,7 @@
 data:
   dataset_path: '../data'
   csv_name: 'train_cloudy.csv'
-  grid_augmentation: false
+  grid_augmentation: True
 dataloader:
   num_workers: 6
   batch_size: 16
@@ -9,19 +9,15 @@ dataloader:
   prefetch_factor: 2
 model:
   base_model_to_load: "../models/strontium/clement_best/16062001_last.pth"
-  s1_layers:
-    out_channels: 2 # [in_dim, out_dim]
-    kernel_size: 5 # [in_dim, out_dim]
   mask_layer:
     out_channels: 2 # [in_dim, out_dim]
     kernel_size: 3 # [in_dim, out_dim]
   conv_block_lai:
-    channels: [24, 12, 1]  # number of conv layers is len(channels)
-    kernel_sizes: [7, 7, 7]
-    recursions: 6
+    channels: [8, 1]  # number of conv layers is len(channels)
+    kernel_sizes: [7, 7]
   conv_block_mask:
-    channels: [24, 12, 6]  # number of conv layers is len(channels)
-    kernel_sizes: [5, 5, 5, 5]
+    channels: [6]  # number of conv layers is len(channels)
+    kernel_sizes: [5]
 base_model:
   sodium_config:
     pretrained: False
@@ -54,13 +50,11 @@ base_model:
     conv_per_layer: 2
     residual: true
     dropout_rate: 0.0
-
-
 train:
-  learning_rate: 0.001
+  learning_rate: 0.00001
   learning_rate_n_mult: 2  # number of times to decay lr (evenly spaced during the full training)
   learning_rate_decay: 0.2  # lr *= decay at each decay step
-  n_epochs: 60
+  n_epochs: 120
   log_interval: 5  # in iterations
   save_interval: 60  # in epochs
   interm_supervis: false  # intermediate supervision for AE

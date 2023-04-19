@@ -8,6 +8,7 @@ dataloader:
   shuffle: true
   prefetch_factor: 2
 model:
+  base_model_to_load: "../models/scandium/295789/295789_last.pth"
   s1_layers:
     out_channels: 2 # [in_dim, out_dim]
     kernel_size: 5 # [in_dim, out_dim]
@@ -32,10 +33,10 @@ base_model:
   glob_module_dims: [2, 8, 2]  # include input dim
   conv_block_dims: [32, 64, 128]  # exclude input dim (automatically inferred)
 train:
-  learning_rate: 0.0005
+  learning_rate: 0.001
   learning_rate_n_mult: 2  # number of times to decay lr (evenly spaced during the full training)
   learning_rate_decay: 0.2  # lr *= decay at each decay step
-  n_epochs: 120
+  n_epochs: 60
   log_interval: 5  # in iterations
   save_interval: 60  # in epochs
   interm_supervis: false  # intermediate supervision for AE

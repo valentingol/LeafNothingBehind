@@ -8,6 +8,7 @@ dataloader:
   shuffle: true
   prefetch_factor: 2
 model:
+  base_model_to_load: "../models/strontium/clement_best/16062001_last.pth"
   ae_config:  # U-Net-like architecture
     in_dim: 7  # 2 + 2*mask_emb + mlp_layers[-1]
     out_dim: 1

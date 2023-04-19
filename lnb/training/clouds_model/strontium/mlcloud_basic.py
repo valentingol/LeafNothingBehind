@@ -12,7 +12,7 @@ from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
 
 import wandb
-from lnb.architecture.cloud_models import Altostratus
+from lnb.architecture.cloud_models import MlCloudModel_basic
 from lnb.architecture.models import Strontium
 from lnb.data.dataset import LNBDataset
 from lnb.training.log_utils import get_time_log
@@ -237,12 +237,9 @@ def run(config: Dict) -> None:
         else "cpu"
     )
     base_model = Strontium(config["base_model"])
-    # base_model.load_state_dict(
-    #     torch.load("../models/scandium/295789/295789_last.pth", map_location=device),
-    # )
     base_model.load_state_dict(
         torch.load(
-            "../models/scandium/clement_best/16062001_last.pth",
+            config['model']['base_model_to_load'],
             map_location=device),
     )
 
@@ -250,7 +247,7 @@ def run(config: Dict) -> None:
     for param in base_model.parameters():
         param.requires_grad = False
     # Cloud model
-    model = Altostratus(base_model=base_model, model_config=config["model"])
+    model = MlCloudModel_basic(base_model=base_model, model_config=config["model"])
     model = model.to(device)
     # Print number of parameters
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -298,7 +295,7 @@ def main() -> None:
     run_id = np.random.randint(1000000)
     config["run_id"] = run_id
     wandb.init(
-        project="lnb", entity="leaf_nothing_behind", group="strontium_altostratus", config=config
+        project="lnb", entity="leaf_nothing_behind", group="strontium_mlcloud_basic", config=config
     )
     run(dict(wandb.config))
     wandb.finish()
