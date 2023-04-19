@@ -279,7 +279,8 @@ class Trainer:
             if (epoch + 1) % train_config["save_interval"] == 0:
                 torch.save(
                     model.state_dict(),
-                    f"../models/{self.model.__name__.lower()}/{run_id}/{run_id}_ep{epoch + 1}.pth",
+                    f"../models/{self.model.__name__.lower()}/"
+                    f"{run_id}/{run_id}_ep{epoch + 1}.pth",
                 )
                 print(
                     f"Model saved to ../models/{self.model.__name__.lower()}/{run_id}/"

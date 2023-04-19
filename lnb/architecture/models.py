@@ -807,6 +807,10 @@ class Strontium(Atom):
         else:
             self.aluminium = Aluminium(model_config["aluminium_config"])
 
+        
+        self.sodium_out_conv = self.sodium.ae.decoder_layers[-1]
+        self.aluminium_out_conv = self.aluminium.ae.decoder_layers[-1]
+
         self.sodium.ae.decoder_layers[-1] = nn.Identity()  # type: ignore
         self.aluminium.ae.decoder_layers[-1] = nn.Identity()  # type: ignore
 
@@ -852,7 +856,7 @@ class Strontium(Atom):
         aluminium_out, _ = self.aluminium(s1_data, in_lai, in_mask_lai, glob)
         concat_all = torch.cat([sodium_out, aluminium_out], dim=1)
 
-        return self.autoencoder(concat_all), None
+        return self.autoencoder(concat_all), (self.sodium_out_conv(sodium_out), self.aluminium_out_conv(aluminium_out))
 
 
 class Yttrium(Atom):

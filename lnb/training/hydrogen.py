@@ -30,7 +30,7 @@ def mask_fn(img_mask: np.ndarray) -> np.ndarray:
 
 
 def parse_data_device(
-    data: torch.Tensor, glob: torch.Tensor, device: torch.device
+    data: torch.Tensor, glob: torch.Tensor, device: torch.device,
 ) -> ParsedDataType:
     """Parse data from dataloader and put it on device."""
     # Parse data
@@ -79,7 +79,7 @@ def val_loop(
     run_id = config["run_id"]
     os.makedirs(f"../models/hydrogen/{run_id}", exist_ok=True)
     with open(
-        f"../models/hydrogen/{run_id}/config.yaml", "w", encoding="utf-8"
+        f"../models/hydrogen/{run_id}/config.yaml", "w", encoding="utf-8",
     ) as cfg_file:
         yaml.dump(dict(wandb.config), cfg_file)
     # Get config params
@@ -113,11 +113,12 @@ def val_loop(
             # Epoch validation logs
             mean_valid_loss = sum(valid_losses) / len(valid_losses)
             wandb.log(
-                {f"mean valid loss {val_name}": mean_valid_loss}, step=int(steps[epoch])
+                {f"mean valid loss {val_name}": mean_valid_loss},
+                step=int(steps[epoch]),
             )
             print(
                 f"\nEpoch {epoch + 1}/{n_epochs}, mean valid loss "
-                f"{val_name} {mean_valid_loss:.4f}"
+                f"{val_name} {mean_valid_loss:.4f}",
             )
 
 
@@ -134,7 +135,7 @@ def run(config: Dict) -> None:
         val_data_config["name"] = name
         val_data_config["csv_name"] = f"validation_{name}.csv"
         val_dataloader = DataLoader(
-            LNBDataset(mask_fn=mask_fn, **val_data_config), **val_loader_config
+            LNBDataset(mask_fn=mask_fn, **val_data_config), **val_loader_config,
         )
         val_dataloaders.append(val_dataloader)
 
@@ -143,7 +144,7 @@ def run(config: Dict) -> None:
         if torch.cuda.is_available()
         else "mps"
         if torch.backends.mps.is_built()
-        else "cpu"
+        else "cpu",
     )
     # Run training
     val_loop(config=config, model=model, val_dataloaders=val_dataloaders, device=device)
@@ -153,17 +154,17 @@ def main() -> None:
     """Main function to run a train with wandb."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--config_path", type=str, required=False, default="config/hydrogen/base.yaml"
+        "--config_path", type=str, required=False, default="config/hydrogen/base.yaml",
     )
     args = parser.parse_args()
 
     with open(args.config_path, encoding="utf-8") as cfg_file:
         config = yaml.safe_load(cfg_file)
     # New id (for model name)
-    run_id = np.random.randint(1000000)
+    run_id = max(int(name) for name in os.listdir("../models/hydrogen")) + 1
     config["run_id"] = run_id
     wandb.init(
-        project="lnb", entity="leaf_nothing_behind", group="hydrogen", config=config
+        project="lnb", entity="leaf_nothing_behind", group="hydrogen", config=config,
     )
     run(dict(wandb.config))
     wandb.finish()
