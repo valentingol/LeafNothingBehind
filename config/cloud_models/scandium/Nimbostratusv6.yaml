@@ -17,7 +17,7 @@ model:
   conv_block_lai:
     channels: [24, 12, 1]  # number of conv layers is len(channels)
     kernel_sizes: [7, 7, 7]
-    recursions: 3
+    recursions: 6
   conv_block_mask:
     channels: [24, 12, 6]  # number of conv layers is len(channels)
     kernel_sizes: [5, 5, 5, 5]
@@ -32,10 +32,10 @@ base_model:
   glob_module_dims: [2, 8, 2]  # include input dim
   conv_block_dims: [32, 64, 128]  # exclude input dim (automatically inferred)
 train:
-  learning_rate: 0.001
+  learning_rate: 0.0005
   learning_rate_n_mult: 2  # number of times to decay lr (evenly spaced during the full training)
   learning_rate_decay: 0.2  # lr *= decay at each decay step
-  n_epochs: 60
+  n_epochs: 120
   log_interval: 5  # in iterations
   save_interval: 60  # in epochs
   interm_supervis: false  # intermediate supervision for AE

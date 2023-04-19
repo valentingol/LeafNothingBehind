@@ -945,7 +945,6 @@ class Nimbostratusv6(Nimbostratusv5):
         lai_cloud: torch.Tensor,
         lai_other: torch.Tensor,
     ):
-
         input_lai_conv = torch.cat([lai_de_clouded,
                                     lai_cloud,
                                     only_modified_mask_emb,
@@ -997,7 +996,7 @@ class Nimbostratusv6(Nimbostratusv5):
         lai_de_clouded = self.conv_block_lai(input_lai_conv)
 
         self._recursive_layers(
-            self.model_config["conv_block_lai"]["recursions"],
+            self.config["conv_block_lai"]["recursions"],
             s1_data_lai_emb,
             s1_data_other_emb,
             only_modified_mask_emb,
