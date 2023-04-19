@@ -2,6 +2,7 @@
 import argparse
 from collections import defaultdict
 from typing import Callable, Dict, Optional, Tuple
+import os
 
 import numpy as np
 import torch
@@ -342,7 +343,8 @@ if __name__ == "__main__":
 
     # Train
 
-    run_id = np.random.randint(1000000)
+    run_id = max(int(name) for name in os.listdir(
+        "../models/strontium") if not name.startswith('.')) + 1
     config["run_id"] = run_id
 
     wandb.init(

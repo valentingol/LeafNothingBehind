@@ -245,7 +245,7 @@ def run(config: Dict) -> None:
     val_loader_config["shuffle"] = False  # No shuffle for validation
     val_loader_config["batch_size"] = 16  # Hard-coded batch size for validation
     val_dataloaders = []
-    for name in ["generalisation", "regular"]:
+    for name in ["regular", "mask_cloudy"]:
         val_data_config["name"] = name
         val_data_config["csv_name"] = f"validation_{name}.csv"
         val_dataloader = DataLoader(
@@ -281,7 +281,8 @@ def main() -> None:
     with open(args.config_path, encoding="utf-8") as cfg_file:
         config = yaml.safe_load(cfg_file)
     # New id (for model name)
-    run_id = max(int(name) for name in os.listdir("../models/scandium")) + 1
+    run_id = max(int(name) for name in os.listdir(
+        "../models/scandium") if not name.startswith('.')) + 1
     config["run_id"] = run_id
     wandb.init(
         project="lnb", entity="leaf_nothing_behind", group="scandium", config=config,

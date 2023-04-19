@@ -290,10 +290,11 @@ def main() -> None:
     with open(args.config_path, encoding="utf-8") as cfg_file:
         config = yaml.safe_load(cfg_file)
     # New id (for model name)
-    run_id = np.random.randint(1000000)
+    run_id = max(int(name) for name in os.listdir(
+        "../models/scandium_nimbostratusv4") if not name.startswith('.')) + 1
     config["run_id"] = run_id
     wandb.init(
-        project="lnb", entity="leaf_nothing_behind", group="scandium_nimbostratus", config=config
+        project="lnb", entity="leaf_nothing_behind", group="scandium_nimbostratusv4", config=config
     )
     run(dict(wandb.config))
     wandb.finish()
