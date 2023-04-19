@@ -12,6 +12,7 @@ from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
 
 import wandb
+from lnb.architecture.cloud_models import CumulusV2
 from lnb.architecture.models import Scandium
 from lnb.data.dataset import LNBDataset
 from lnb.training.log_utils import get_time_log
@@ -22,8 +23,7 @@ ParsedDataType = Dict[str, Dict[str, torch.Tensor]]
 
 def mask_fn(img_mask: np.ndarray) -> np.ndarray:
     """Transform an S2 mask (values between 1 and 9) to float32.
-    Channels are last dimension.
-    """
+    Channels are last dimension."""
     metric_mask = np.where(img_mask < 2, 0.0, 1.0)
     metric_mask = np.where(img_mask > 6, 0.0, metric_mask)
     mask_2 = np.where(img_mask == 2, 1.0, 0.0)
@@ -35,7 +35,7 @@ def mask_fn(img_mask: np.ndarray) -> np.ndarray:
 
 
 def parse_data_device(
-    data: torch.Tensor, glob: torch.Tensor, device: torch.device,
+    data: torch.Tensor, glob: torch.Tensor, device: torch.device
 ) -> ParsedDataType:
     """Parse data from dataloader and put it on device."""
     # Parse data
@@ -126,7 +126,7 @@ def train_val_loop(
     run_id = config["run_id"]
     os.makedirs(f"../models/scandium/{run_id}", exist_ok=True)
     with open(
-        f"../models/scandium/{run_id}/config.yaml", "w", encoding="utf-8",
+        f"../models/scandium/{run_id}/config.yaml", "w", encoding="utf-8"
     ) as cfg_file:
         yaml.dump(dict(wandb.config), cfg_file)
     # Get training config params
@@ -153,7 +153,7 @@ def train_val_loop(
             # Parse data and put it on device
             parsed_data = parse_data_device(data, glob, device)
             loss, loss2 = train_step(
-                model, optimizer, parsed_data, train_config["interm_supervis"],
+                model, optimizer, parsed_data, train_config["interm_supervis"]
             )
             train_losses.append(loss.item())
             # Logs
@@ -163,8 +163,7 @@ def train_val_loop(
             if i_batch % train_config["log_interval"] == 0:
                 current_t = time()
                 eta_str, eta_ep_str = get_time_log(
-                    current_t, start_t, epoch_start_t, i_batch, epoch, n_batch,
-                    n_epochs,
+                    current_t, start_t, epoch_start_t, i_batch, epoch, n_batch, n_epochs
                 )
                 print(
                     f"train loss batch: {loss.item():.4f} - eta epoch {eta_ep_str}"
@@ -204,7 +203,7 @@ def train_val_loop(
             wandb.log({f"mean valid loss {val_name}": mean_valid_loss})
             print(
                 f"\nEpoch {epoch + 1}/{n_epochs}, mean valid loss "
-                f"{val_name} {mean_valid_loss:.4f}",
+                f"{val_name} {mean_valid_loss:.4f}"
             )
 
         # Free unused VRAM
@@ -220,7 +219,7 @@ def train_val_loop(
             )
             print(
                 f"Model saved to ../models/scandium/{run_id}/"
-                f"{run_id}_ep{epoch + 1}.pth",
+                f"{run_id}_ep{epoch + 1}.pth"
             )
 
     # Save final model
@@ -230,13 +229,30 @@ def train_val_loop(
 
 def run(config: Dict) -> None:
     """Run training."""
-    model = Scandium(config["model"])
+    device = torch.device(
+        "cuda"
+        if torch.cuda.is_available()
+        else "mps"
+        if torch.backends.mps.is_built()
+        else "cpu"
+    )
+    base_model = Scandium(config["base_model"])
+    base_model.load_state_dict(
+        torch.load(config['model']['base_model_to_load'], map_location=device),
+    )
+
+    # Freeze base model
+    for param in base_model.parameters():
+        param.requires_grad = False
+    # Cloud model
+    model = CumulusV2(base_model=base_model, model_config=config["model"])
+    model = model.to(device)
     # Print number of parameters
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Model has {n_params} parameters")
 
     train_dataloader = DataLoader(
-        LNBDataset(mask_fn=mask_fn, **config["data"]), **config["dataloader"],
+        LNBDataset(mask_fn=mask_fn, **config["data"]), **config["dataloader"]
     )
     # Build validation data loaders
     val_data_config = config["data"].copy()
@@ -245,21 +261,14 @@ def run(config: Dict) -> None:
     val_loader_config["shuffle"] = False  # No shuffle for validation
     val_loader_config["batch_size"] = 16  # Hard-coded batch size for validation
     val_dataloaders = []
-    for name in ["regular", "mask_cloudy"]:
+    for name in ["mask_cloudy"]:
         val_data_config["name"] = name
         val_data_config["csv_name"] = f"validation_{name}.csv"
         val_dataloader = DataLoader(
-            LNBDataset(mask_fn=mask_fn, **val_data_config), **val_loader_config,
+            LNBDataset(mask_fn=mask_fn, **val_data_config), **val_loader_config
         )
         val_dataloaders.append(val_dataloader)
 
-    device = torch.device(
-        "cuda"
-        if torch.cuda.is_available()
-        else "mps"
-        if torch.backends.mps.is_built()
-        else "cpu",
-    )
     # Run training
     train_val_loop(
         config=config,
@@ -274,18 +283,17 @@ def main() -> None:
     """Main function to run a train with wandb."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--config_path", type=str, required=False, default="config/scandium/base.yaml",
+        "--config_path", type=str, required=False, default="config/scandium/base.yaml"
     )
     args = parser.parse_args()
 
     with open(args.config_path, encoding="utf-8") as cfg_file:
         config = yaml.safe_load(cfg_file)
     # New id (for model name)
-    run_id = max(int(name) for name in os.listdir(
-        "../models/scandium") if not name.startswith('.')) + 1
+    run_id = np.random.randint(1000000)
     config["run_id"] = run_id
     wandb.init(
-        project="lnb", entity="leaf_nothing_behind", group="scandium", config=config,
+        project="lnb", entity="leaf_nothing_behind", group="scandium_cumulusv2", config=config
     )
     run(dict(wandb.config))
     wandb.finish()

@@ -73,7 +73,7 @@ def save_csv_grids(data_path: str, csv_name: str) -> str:
             "bright2",
         ],
     )
-    csv_grid_path = osp.join(data_path, "train_regular_grids.csv")
+    csv_grid_path = osp.join(data_path, csv_name)
     grids_df.to_csv(csv_grid_path, index=False)
     return csv_grid_path
 
@@ -126,5 +126,7 @@ def save_grids(data_path: str, csv_grid_path: str) -> None:
 if __name__ == "__main__":
     DATA_PATH = "../data"
     CSV_PATH = "train_regular.csv"
+    create_grids(DATA_PATH, CSV_PATH)
     #  tiff_to_np(DATA_PATH)
+    CSV_PATH = "train_cloudy.csv"
     create_grids(DATA_PATH, CSV_PATH)

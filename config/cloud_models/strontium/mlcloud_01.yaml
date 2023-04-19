@@ -1,0 +1,64 @@
+data:
+  dataset_path: '../data'
+  csv_name: 'train_cloudy.csv'
+  grid_augmentation: false
+dataloader:
+  num_workers: 6
+  batch_size: 16
+  shuffle: true
+  prefetch_factor: 2
+model:
+  base_model_to_load: "../models/strontium/clement_best/16062001_last.pth"
+  s1_layers:
+    out_channels: 2 # [in_dim, out_dim]
+    kernel_size: 5 # [in_dim, out_dim]
+  mask_layer:
+    out_channels: 2 # [in_dim, out_dim]
+    kernel_size: 3 # [in_dim, out_dim]
+  conv_block_lai:
+    channels: [24, 12, 1]  # number of conv layers is len(channels)
+    kernel_sizes: [7, 7, 7]
+    recursions: 6
+  conv_block_mask:
+    channels: [24, 12, 6]  # number of conv layers is len(channels)
+    kernel_sizes: [5, 5, 5, 5]
+base_model:
+  sodium_config:
+    pretrained: False
+    run_id: 834358
+    ae_config:  # U-Net-like architecture
+      in_dim: 11  # 6 + 2*mask_embedding_channels + mlp_layers[-1]
+      out_dim: 1
+      layer_channels: [32, 64, 128]
+      conv_per_layer: 2
+      residual: true
+      dropout_rate: 0.0
+    mask_embedding_channels: 2
+    mlp_layers: [2, 1]
+  aluminium_config:
+    pretrained: False
+    run_id: 550160
+    ae_config:  # U-Net-like architecture
+      in_dim: 7  # 2 + 2*mask_emb + mlp_layers[-1]
+      out_dim: 1
+      layer_channels: [32, 64, 128]
+      conv_per_layer: 2
+      residual: true
+      dropout_rate: 0.0
+    mask_embedding_channels: 2
+    mlp_layers: [2, 1]
+  ae_config:
+    in_dim: 64 # aluminium_config['layer_channels'][0] + sodium_config['layer_channels'][0]
+    out_dim: 1
+    layer_channels: [64, 128, 256]
+    conv_per_layer: 2
+    residual: true
+    dropout_rate: 0.0
+train:
+  learning_rate: 0.001
+  learning_rate_n_mult: 2  # number of times to decay lr (evenly spaced during the full training)
+  learning_rate_decay: 0.2  # lr *= decay at each decay step
+  n_epochs: 60
+  log_interval: 5  # in iterations
+  save_interval: 60  # in epochs
+  interm_supervis: false  # intermediate supervision for AE
