@@ -1,16 +1,8 @@
-data:
-  dataset_path: '../data'
-  csv_name: 'train_regular.csv'
-  grid_augmentation: false
-dataloader:
-  num_workers: 8
-  batch_size: 32
-  shuffle: true
-  prefetch_factor: 2
+archi_name: strontium
 model:
   sodium_config:
-    pretrained: true
-    run_id: 834358
+    pretrained: false
+    run_id: 0
     ae_config:  # U-Net-like architecture
       in_dim: 11  # 6 + 2*mask_embedding_channels + mlp_layers[-1]
       out_dim: 1
@@ -21,8 +13,8 @@ model:
     mask_embedding_channels: 2
     mlp_layers: [2, 1]
   aluminium_config:
-    pretrained: true
-    run_id: 550160
+    pretrained: false
+    run_id: 0
     ae_config:  # U-Net-like architecture
       in_dim: 7  # 2 + 2*mask_emb + mlp_layers[-1]
       out_dim: 1
@@ -40,14 +32,8 @@ model:
     residual: true
     dropout_rate: 0.0
 
-
 train:
-  learning_rate: 0.001
-  learning_rate_n_mult: 2  # number of times to decay lr (evenly spaced during the full training)
-  learning_rate_decay: 0.2  # lr *= decay at each decay step
-  n_epochs: 30
-  log_interval: 20  # in iterations
-  save_interval: 5  # in epochs
-  interm_supervis: true  # intermediate supervision for AE
   weight_2: 0.1
   weight_3: 0.15
+
+dataloader.batch_size: 8

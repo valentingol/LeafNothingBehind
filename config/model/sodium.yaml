@@ -1,0 +1,11 @@
+archi_name: sodium
+model:
+  ae_config:  # U-Net-like architecture
+    in_dim: 11  # 6 + 2*mask_embedding_channels + mlp_layers[-1]
+    out_dim: 1
+    layer_channels: [32, 64, 128]
+    conv_per_layer: 2
+    residual: true
+    dropout_rate: 0.0
+  mask_embedding_channels: 2
+  mlp_layers: [2, 1]
