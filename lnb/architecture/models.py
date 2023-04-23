@@ -57,28 +57,6 @@ class Atom(nn.Module):
         raise NotImplementedError("You must implement the forward pass.")
 
 
-class Hydrogen(Atom):
-    """Hydrogen model for LNB (baseline)."""
-
-    # pylint: disable=unused-argument
-    def forward(
-        self: Atom,
-        s1_data: torch.Tensor,  # noqa: ARG002
-        in_lai: torch.Tensor,
-        in_mask_lai: torch.Tensor,  # noqa: ARG002
-        glob: torch.Tensor,  # noqa: ARG002
-    ) -> Tuple:
-        """Forward pass."""
-        lai = (in_lai[:, 0] + in_lai[:, 1]) / 2.0
-        # Ignore null LAI
-        for i, sample in enumerate(in_lai):
-            if sample[0].min() == sample[0].max():
-                lai[i] = sample[1]
-            if sample[1].min() == sample[1].max():
-                lai[i] = sample[0]
-        return (lai, None)
-
-
 class Scandium(Atom):
     """Scandium model for LNB.
 
@@ -574,130 +552,13 @@ class Manganese(Atom):
         return (lai, s1_embed)  # return s1 embedding for intermediate supervision
 
 
-class Lithium(Atom):
-    """Lithium model for LNB.
-
-    Parameters
-    ----------
-    module_config: Dict
-        Model configuration.
-            ae_config: Dict
-                Configuration for the auto-encoder.
-                    in_dim: int
-                    out_dim : int
-                    layer_channels : List[int]
-                    conv_per_layer : int, optional
-                    residual : bool, optional
-                    dropout_rate : float, optional
-    """
-
-    def __init__(self, model_config: Dict) -> None:
-        super().__init__(model_config)
-        ae_config = model_config["ae_config"]
-        self.ae_model = AutoEncoder(**ae_config)
-        self.mask_conv = nn.Conv2d(1, 1, kernel_size=5, stride=1, padding=2)
-
-    # pylint: disable=unused-argument
-    def forward(
-        self,
-        s1_data: torch.Tensor,  # noqa: ARG002
-        in_lai: torch.Tensor,  # noqa: ARG002
-        in_mask_lai: torch.Tensor,  # noqa: ARG002
-        glob: torch.Tensor,  # noqa: ARG002
-    ) -> Tuple:
-        """Forward pass."""
-        s1_concat = s1_data.view(-1, 6, s1_data.shape[-2], s1_data.shape[-1])
-        return self.ae_model(s1_concat), None
-
-
-class Berylium(Atom):
-    """Berylium model for LNB.
-
-    Parameters
-    ----------
-    module_config: Dict
-        Model configuration.
-            ae_config: Dict
-                Configuration for the auto-encoder.
-                    in_dim: int
-                    out_dim : int
-                    layer_channels : List[int]
-                    conv_per_layer : int, optional
-                    residual : bool, optional
-                    dropout_rate : float, optional
-            mask_embedding_channels : int
-                Number of channels for the mask embedding.
-    """
-
-    def __init__(self, model_config: Dict) -> None:
-        super().__init__(model_config)
-        ae_config = model_config["ae_config"]
-        self.ae = AutoEncoder(**ae_config)
-        self.mask_conv = nn.Conv2d(
-            1,
-            model_config["mask_embedding_channels"],
-            kernel_size=1,
-            stride=1,
-        )
-
-    # pylint: disable=unused-argument
-    def forward(
-        self,
-        s1_data: torch.Tensor,
-        in_lai: torch.Tensor,  # noqa: ARG002
-        in_mask_lai: torch.Tensor,
-        glob: torch.Tensor,  # noqa: ARG002
-    ) -> Tuple:
-        """Forward pass."""
-        s1_concat = s1_data.view(-1, 6, s1_data.shape[-2], s1_data.shape[-1])
-        mask_t2 = self.mask_conv(in_mask_lai[:, 0, :, :, :])
-        mask_t1 = self.mask_conv(in_mask_lai[:, 1, :, :, :])
-
-        concat_all = torch.cat([s1_concat, mask_t1, mask_t2], dim=1)
-
-        return self.ae(concat_all), None
-
-
-class Magnesium(Atom):
-    """Magnesium model."""
-
-    def __init__(self, model_config: Dict) -> None:
-        super().__init__(model_config)
-        ae_config = model_config["ae_config"]
-        self.ae = AutoEncoder(**ae_config)
-        self.mask_conv = nn.Conv2d(
-            6,
-            model_config["mask_embedding_channels"],
-            kernel_size=1,
-            stride=1,
-        )
-
-    # pylint: disable=unused-argument
-    def forward(
-        self,
-        s1_data: torch.Tensor,  # noqa: ARG002
-        in_lai: torch.Tensor,
-        in_mask_lai: torch.Tensor,
-        glob: torch.Tensor,  # noqa: ARG002
-    ) -> Tuple:
-        """Forward pass."""
-        mask_t2 = self.mask_conv(in_mask_lai[:, 0, :, :, :])
-        mask_t1 = self.mask_conv(in_mask_lai[:, 1, :, :, :])
-
-        s2 = in_lai.view(in_lai.shape[0], -1, in_lai.shape[-2], in_lai.shape[-1])
-
-        concat_all = torch.cat([s2, mask_t1, mask_t2], dim=1)
-
-        return self.ae(concat_all), None
-
-
 class Sodium(Atom):
     """Sodium model for LNB."""
 
     def __init__(self, model_config: Dict) -> None:
         super().__init__(model_config)
         ae_config = model_config["ae_config"]
-        self.ae = AutoEncoder(**ae_config)
+        self.autoencoder = AutoEncoder(**ae_config)
         self.mask_conv = nn.Conv2d(
             6,
             model_config["mask_embedding_channels"],
@@ -727,16 +588,12 @@ class Sodium(Atom):
         mask_t1 = self.mask_conv(in_mask_lai[:, 1, :, :, :])
 
         timestamp_emb = self.mlp(glob)
-        timestamp_map = timestamp_emb.view(-1, timestamp_emb.size(1), 1, 1).repeat(
-            1,
-            timestamp_emb.size(1),
-            256,
-            256,
-        )
+        timestamp_map = timestamp_emb.view(-1, timestamp_emb.size(1), 1, 1)
+        timestamp_map = timestamp_map.repeat(1, timestamp_emb.size(1), 256, 256)
 
         concat_all = torch.cat([s1_concat, mask_t1, mask_t2, timestamp_map], dim=1)
 
-        return self.ae(concat_all), None
+        return self.autoencoder(concat_all), None
 
 
 class Aluminium(Atom):
@@ -745,7 +602,7 @@ class Aluminium(Atom):
     def __init__(self, model_config: Dict) -> None:
         super().__init__(model_config)
         ae_config = model_config["ae_config"]
-        self.ae = AutoEncoder(**ae_config)
+        self.autoencoder = AutoEncoder(**ae_config)
         self.mask_conv = nn.Conv2d(
             6,
             model_config["mask_embedding_channels"],
@@ -771,19 +628,15 @@ class Aluminium(Atom):
         mask_t2 = self.mask_conv(in_mask_lai[:, 0, :, :, :])
         mask_t1 = self.mask_conv(in_mask_lai[:, 1, :, :, :])
 
-        s2 = in_lai.view(in_lai.shape[0], -1, in_lai.shape[-2], in_lai.shape[-1])
+        new_lai = in_lai.view(in_lai.shape[0], -1, in_lai.shape[-2], in_lai.shape[-1])
 
         timestamp_emb = self.mlp(glob)
-        timestamp_map = timestamp_emb.view(-1, timestamp_emb.size(1), 1, 1).repeat(
-            1,
-            timestamp_emb.size(1),
-            256,
-            256,
-        )
+        timestamp_map = timestamp_emb.view(-1, timestamp_emb.size(1), 1, 1)
+        timestamp_map = timestamp_map.repeat(1, timestamp_emb.size(1), 256, 256)
 
-        concat_all = torch.cat([s2, mask_t1, mask_t2, timestamp_map], dim=1)
+        concat_all = torch.cat([new_lai, mask_t1, mask_t2, timestamp_map], dim=1)
 
-        return self.ae(concat_all), None
+        return self.autoencoder(concat_all), None
 
 
 class Strontium(Atom):
@@ -807,12 +660,11 @@ class Strontium(Atom):
         else:
             self.aluminium = Aluminium(model_config["aluminium_config"])
 
-        
-        self.sodium_out_conv = self.sodium.ae.decoder_layers[-1]
-        self.aluminium_out_conv = self.aluminium.ae.decoder_layers[-1]
+        self.sodium_out_conv = self.sodium.autoencoder.decoder_layers[-1]
+        self.aluminium_out_conv = self.aluminium.autoencoder.decoder_layers[-1]
 
-        self.sodium.ae.decoder_layers[-1] = nn.Identity()  # type: ignore
-        self.aluminium.ae.decoder_layers[-1] = nn.Identity()  # type: ignore
+        self.sodium.autoencoder.decoder_layers[-1] = nn.Identity()
+        self.aluminium.autoencoder.decoder_layers[-1] = nn.Identity()
 
         ae_config = model_config["ae_config"]
         self.autoencoder = AutoEncoder(**ae_config)
@@ -838,7 +690,7 @@ class Strontium(Atom):
 
         model.load_state_dict(
             torch.load(
-                os.path.join(model_folder, f"{run_id}_last.pth"),  # type: ignore
+                os.path.join(model_folder, f"{run_id}_last.pth"),
             ),
         )
 
@@ -856,11 +708,14 @@ class Strontium(Atom):
         aluminium_out, _ = self.aluminium(s1_data, in_lai, in_mask_lai, glob)
         concat_all = torch.cat([sodium_out, aluminium_out], dim=1)
 
-        return self.autoencoder(concat_all), (self.sodium_out_conv(sodium_out), self.aluminium_out_conv(aluminium_out))
+        return self.autoencoder(concat_all), (
+            self.sodium_out_conv(sodium_out),
+            self.aluminium_out_conv(aluminium_out),
+        )
 
 
-class Yttrium(Atom):
-    """Yttrium model for LNB.
+class ScandiumWeather(Atom):
+    """Scandium model for LNB including weather data.
 
     Parameters
     ----------
