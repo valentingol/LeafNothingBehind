@@ -7,4 +7,5 @@ tifffile==2023.3.21
 torch==1.12.0
 torchvision==0.13.0
 transformers==4.27.4
-wandb==0.14.1
+wandb==0.15.0
+yaecs==1.0.2
