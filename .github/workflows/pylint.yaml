@@ -41,8 +41,8 @@ jobs:
       uses: schneegans/dynamic-badges-action@v1.1.0
       with:
         auth: ${{ secrets.GIST_SECRET }}
-        gistID: 106c646ac67294657bccf02bbe22208f
-        filename: workflow_template_pylint.json
+        gistID: ec9e76ad6b0ca6c0c7263fb1e741ae05
+        filename: lnb_badges.json
         label: Pylint
         message: ${{ env.PYLINT_SCORE }}
         color: ${{ env.PYLINT_COLOR }}
