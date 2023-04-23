@@ -1,4 +1,5 @@
 """Safe grids to numpy arrays."""
+import argparse
 import os
 import os.path as osp
 
@@ -35,10 +36,8 @@ def save_csv_grids(data_path: str, csv_name: str) -> str:
     for head, grid in grids.items():
         for i in range(0, 32):
             for j in range(0, 32):
-                if (
-                    grid[i, j] + grid[i + 1, j] + grid[i, j + 1] + grid[i + 1, j + 1]
-                    == 4
-                ):
+                if (grid[i, j] + grid[i + 1, j] + grid[i, j + 1] + grid[i + 1, j + 1]
+                        == 4):
                     list_square.append(
                         [
                             f"{head}-0-0-{i}-{j}.tiff",
@@ -58,20 +57,9 @@ def save_csv_grids(data_path: str, csv_name: str) -> str:
     # save to csv
     grids_df = pd.DataFrame(
         list_square,
-        columns=[
-            "uleft0",
-            "uright0",
-            "bleft0",
-            "bright0",
-            "uleft1",
-            "uright1",
-            "bleft1",
-            "bright1",
-            "uleft2",
-            "uright2",
-            "bleft2",
-            "bright2",
-        ],
+        columns=["uleft0", "uright0", "bleft0", "bright0",
+                 "uleft1", "uright1", "bleft1", "bright1",
+                 "uleft2", "uright2", "bleft2", "bright2"],
     )
     csv_grid_path = osp.join(data_path, csv_name)
     grids_df.to_csv(csv_grid_path, index=False)
@@ -105,7 +93,10 @@ def save_grids(data_path: str, csv_grid_path: str) -> None:
         # channels: [LAI, (LAI mask), VV, VH]
         # Split time and 2*2 locations on two axes
         grid_np = rearrange(
-            grid_np, "(time loc) h w c -> time loc h w c", time=3, loc=4,
+            grid_np,
+            "(time loc) h w c -> time loc h w c",
+            time=3,
+            loc=4,
         )
         # Rearrange locations to get a 2*2 grid
         grid_np = rearrange(
@@ -123,10 +114,15 @@ def save_grids(data_path: str, csv_grid_path: str) -> None:
     print()
 
 
+def main() -> None:
+    """Parse CLI arguments and create 2*2 grids for data augmentation."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data_path", type=str, required=False, default="../data")
+    parser.add_argument("--csv_name", type=str)
+    args = parser.parse_args()
+
+    create_grids(args.data_path, args.csv_name)
+
+
 if __name__ == "__main__":
-    DATA_PATH = "../data"
-    CSV_PATH = "train_regular.csv"
-    create_grids(DATA_PATH, CSV_PATH)
-    #  tiff_to_np(DATA_PATH)
-    CSV_PATH = "train_cloudy.csv"
-    create_grids(DATA_PATH, CSV_PATH)
+    main()
