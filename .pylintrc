@@ -23,7 +23,7 @@ analyse-fallback-blocks=no
 # A comma-separated list of package or module names from where C extensions may
 # be loaded. Extensions are loading into the active Python interpreter and may
 # run arbitrary code.
-extension-pkg-allow-list=PyQt5
+extension-pkg-allow-list=
 
 # A comma-separated list of package or module names from where C extensions may
 # be loaded. Extensions are loading into the active Python interpreter and may
@@ -76,7 +76,7 @@ limit-inference-results=100
 
 # List of plugins (as comma separated values of python module names) to load,
 # usually to register additional checkers.
-load-plugins=
+load-plugins=pylint.extensions.docparams
 
 # Pickle collected data for later comparisons.
 persistent=yes
@@ -107,7 +107,7 @@ unsafe-load-any-extension=no
 # 'convention', and 'info' which contain the number of messages in each
 # category, as well as 'statement' which is the total number of statements
 # analyzed. This score is used by the global evaluation report (RP0004).
-evaluation=max(0, 0 if fatal else 10.0 - ((float(5 * error + warning + refactor + convention) / statement) * 10))
+evaluation=max(0.0, 10.0 - ((float(5 * error + warning + refactor + convention) / statement) * 10))
 
 # Template used to display messages. This is a python new-style format string
 # used to format the message information. See doc for all details.
@@ -131,7 +131,6 @@ score=yes
 # all. Valid levels: HIGH, CONTROL_FLOW, INFERENCE, INFERENCE_FAILURE,
 # UNDEFINED.
 confidence=HIGH,
-           CONTROL_FLOW,
            INFERENCE,
            INFERENCE_FAILURE,
            UNDEFINED
@@ -145,18 +144,23 @@ confidence=HIGH,
 # --enable=similarities". If you want to run only the classes checker, but have
 # no Warning level messages displayed, use "--disable=all --enable=classes
 # --disable=W".
-disable=no-member,
+disable=raw-checker-failed,
+        bad-inline-option,
+        locally-disabled,
+        file-ignored,
+        suppressed-message,
+        useless-suppression,
+        deprecated-pragma,
+        use-symbolic-message-instead,
         no-name-in-module,
-        not-callable,
         redefined-outer-name,
-        duplicate-code,
-        wrong-import-order,  # mypy handles this
+        no-member,
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
 # multiple time (only on the command line, not in the configuration file where
 # it should appear only once). See also the "--disable" option for examples.
-enable=
+enable=c-extension-no-member
 
 
 [BASIC]
@@ -178,12 +182,7 @@ attr-naming-style=snake_case
 #attr-rgx=
 
 # Bad variable names which should always be refused, separated by a comma.
-bad-names=foo,
-          bar,
-          baz,
-          toto,
-          tutu,
-          tata
+bad-names=foo,bar,baz,toto,tutu,tata
 
 # Bad variable names regexes, separated by a comma. If names match any regex,
 # they will always be refused
@@ -233,7 +232,7 @@ function-naming-style=snake_case
 #function-rgx=
 
 # Good variable names which should always be accepted, separated by a comma.
-good-names=i, j, k, n, m, d, x, X, y, Y, z, w, h, lr, _
+good-names=i, j, k, n, x, X, y, Y, z, _
 
 # Good variable names regexes, separated by a comma. If names match any regex,
 # they will always be accepted
@@ -296,7 +295,7 @@ variable-naming-style=snake_case
 expected-line-ending-format=
 
 # Regexp for a line that is allowed to be longer than the limit.
-ignore-long-lines=^\s*(# )?<?https?://\S+>?$
+ignore-long-lines=\bhttp\S* # Default ^\s*(# )?<?https?://\S+>?$
 
 # Number of spaces of indent required inside a hanging or continued line.
 indent-after-paren=4
@@ -306,7 +305,7 @@ indent-after-paren=4
 indent-string='    '
 
 # Maximum number of characters on a single line.
-max-line-length=88
+max-line-length=88  # default 100
 
 # Maximum number of lines in a module.
 max-module-lines=1000
@@ -508,10 +507,10 @@ exclude-too-few-public-methods=
 ignored-parents=
 
 # Maximum number of arguments for function / method.
-max-args=8
+max-args=8  # default 5
 
 # Maximum number of attributes for a class (see R0902).
-max-attributes=20
+max-attributes=15  # default 7
 
 # Maximum number of boolean expressions in an if statement (see R0916).
 max-bool-expr=5
@@ -520,7 +519,7 @@ max-bool-expr=5
 max-branches=12
 
 # Maximum number of locals for function / method body.
-max-locals=30
+max-locals=20  # default 15
 
 # Maximum number of parents for a class (see R0901).
 max-parents=7
@@ -529,13 +528,13 @@ max-parents=7
 max-public-methods=20
 
 # Maximum number of return / yield for function / method body.
-max-returns=20
+max-returns=6
 
 # Maximum number of statements in function / method body.
-max-statements=200
+max-statements=100  # default 50
 
 # Minimum number of public methods for a class (see R0903).
-min-public-methods=0
+min-public-methods=0  # default 2
 
 
 [LOGGING]
@@ -601,5 +600,14 @@ valid-metaclass-classmethod-first-arg=cls
 [EXCEPTIONS]
 
 # Exceptions that will emit a warning when caught.
-overgeneral-exceptions=BaseException,
-                       Exception
+overgeneral-exceptions=builtins.BaseException,
+                       builtins.Exception
+
+
+[tool.pylint.parameter_documentation]
+# Parameter documentation (optional check)
+accept-no-param-doc = true
+accept-no-raise-doc = true
+accept-no-return-doc = true
+accept-no-yields-doc = true
+default-docstring-type = numpy
