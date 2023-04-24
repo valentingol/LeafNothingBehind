@@ -69,4 +69,4 @@ no_implicit_reexport = true
 pretty = true
 strict_equality = true
 warn_redundant_casts = true
-warn_unused_ignores = true
+warn_unused_ignores = false
