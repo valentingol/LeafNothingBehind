@@ -11,14 +11,18 @@ authors = [
 ]
 description = """Repository of the 2023 Transfer Learning competition in
 partnership with World From Spac. Team Antoine Aurélien Clement Valentin."""
-readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 keywords = ["Leaf Area Idex", "Deep Learning"]
 license = {text = "MIT"}
 classifiers = [
     "Programming Language :: Python :: 3",
 ]
 version = "1.0"
+dynamic = ["readme", "dependencies"]
+
+[tool.setuptools.dynamic]
+readme = { file = ["README.md"] , content-type = "text/markdown" }
+dependencies = { file = ["requirements.txt"] }
 
 [tool.ruff]
 # pycodestyle error (E) and warning (W), pyflakes (F), mccabe (C90), isort (I),
@@ -27,15 +31,16 @@ version = "1.0"
 # annotations (ANN), boolean-trap (FBT), builtins (A), commas (COM),
 # comprehensions (C4), import conventions (ICN), pie (PIE), pytest-style (PT),
 # return (RET), simplify (SIM), tidy-imports (TID), unused-arguments (ARG)
-select = ['A', 'ANN', 'ARG', 'C4', 'C90', 'COM', 'D', 'E', 'F', 'FBT', 'I',
+select = ['A', 'ARG', 'C4', 'C90', 'COM', 'D', 'E', 'F', 'FBT', 'I',
           'ICN', 'NPY', 'PD', 'PIE', 'PT', 'RET', 'SIM', 'TID', 'W']
-ignore = ['ANN101', 'RET504']
-fixable = ['A', 'ANN', 'ARG', 'BLE', 'C4', 'C90', 'COM', 'D', 'E', 'F', 'FBT', 'I',
+ignore = ['RET504', 'F841', 'F401']
+fixable = ['A', 'ARG', 'BLE', 'C4', 'C90', 'COM', 'D', 'E', 'F', 'FBT', 'I',
            'ICN', 'NPY', 'PD', 'PIE', 'PT', 'RET', 'SIM', 'TID', 'W']
-exclude = [".eggs", ".git", ".mypy_cache", ".ruff_cache", ".venv", "__pypackages__", "venv"]
+exclude = [".eggs", ".git", ".mypy_cache", ".ruff_cache", ".venv", "venv",
+           "__pypackages__"]
 
 line-length = 88
-target-version = "py37"
+target-version = "py38"
 
 [tool.ruff.mccabe]
 max-complexity = 10
@@ -55,11 +60,13 @@ disallow_any_generics = false
 disallow_incomplete_defs = true
 disallow_untyped_calls = true
 disallow_untyped_defs = true
-files = '**/*.py'
+files = '*.py'
+follow_imports = 'skip'
+follow_imports_for_stubs = false
 ignore_missing_imports = true
 no_implicit_optional = true
 no_implicit_reexport = true
 pretty = true
 strict_equality = true
 warn_redundant_casts = true
-warn_unused_ignores = true
+warn_unused_ignores = false

@@ -1,0 +1,31 @@
+run_id: null  # None for random id (recommended)
+archi_name: null
+model: null
+
+data: !data
+  dataset_path: '../data'
+  csv_name: 'train_regular.csv'  # Name of the train csv file
+  grid_augmentation: false
+  use_weather: false
+
+dataloader: !dataloader
+  num_workers: 6
+  batch_size: 16
+  shuffle: true
+  prefetch_factor: 2
+
+train: !train
+  learning_rate: 0.001
+  learning_rate_n_mult: 2  # number of times to decay lr (evenly spaced during the full training)
+  learning_rate_decay: 0.2  # lr *= decay at each decay step
+  val_batch_size: 16
+  n_epochs: 30
+  log_interval: 20  # in iterations
+  save_interval: 10  # in epochs
+  interm_supervis: false  # intermediate supervision for AE
+  weight_2: null  # weight on the second loss term for strontium
+  weight_3: null  # weight on the third loss term for strontium
+
+wandb: !wandb
+  project: lai_from_past
+  entity: null  # None for personal account

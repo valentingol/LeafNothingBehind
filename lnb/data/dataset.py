@@ -13,8 +13,10 @@ from torchvision import transforms
 
 from lnb.data import meteo
 
-DataType = Union[Tuple[torch.Tensor, torch.Tensor, torch.Tensor],
-                 Tuple[torch.Tensor, torch.Tensor]]
+DataType = Union[
+    Tuple[torch.Tensor, torch.Tensor, torch.Tensor],
+    Tuple[torch.Tensor, torch.Tensor],
+]
 
 
 def normalize_fn(data: np.ndarray) -> np.ndarray:
@@ -67,11 +69,8 @@ class LNBDataset(Dataset):
     data : torch.Tensor
         Tensor of shape (3, 3+c, 256, 256) containing the 3 time steps, t-2, t-1, t
         and the 3+c channels: (LAI, (c LAI mask channels), VV, VH).
-    time_info : torch.Tensor
-        Tensor two floats between 0 and 1 continuous and periodic
-        containing time information.
-    use_weather : torch.Tensor, optional
-        Tensor containing weather information.
+    glob : torch.Tensor
+        Seasonality (= time_info) and weather information (if use_weather is True).
     """
 
     def __init__(
@@ -98,6 +97,8 @@ class LNBDataset(Dataset):
         self.normalize_fn = normalize_fn
         # Data frames
         self.series_df = pd.read_csv(osp.join(dataset_path, csv_name))
+        self.grid_df = pd.DataFrame(data=None)
+        self.grid_path = ""
         if grid_augmentation:
             csv_base_name, _ = osp.splitext(csv_name)
             csv_grid_name = csv_base_name + "_grids.csv"
@@ -110,8 +111,6 @@ class LNBDataset(Dataset):
                     "before",
                 ) from exc
             self.grid_path = osp.join(self.dataset_path, csv_base_name + "_grids")
-        else:
-            self.grid_df, self.grid_path = None, ""
 
         # Weather data
         self.use_weather = use_weather
@@ -135,7 +134,7 @@ class LNBDataset(Dataset):
             samples_list = []
 
             # Get time information
-            time_info = self._name_to_time_info(self.series_df["0"][idx])
+            time_info = self._name_to_time_info(str(self.series_df["0"][idx]))
 
             for tstep in ["0", "1", "2"]:
                 mask_lai = self.mask_fn(
@@ -164,13 +163,14 @@ class LNBDataset(Dataset):
 
             # Get weather data
             if self.use_weather:
-                weather_data = self._get_weather_vector(self.series_df.iloc[idx])
+                series = self.series_df.iloc[idx]
+                weather_data = self._get_weather_vector(series)
 
                 # Concatenate time info and weather data
                 time_info_unsq = torch.unsqueeze(time_info, dim=1)
                 time_info_unsq = torch.unsqueeze(time_info_unsq, dim=1)
                 weather_data = torch.cat([time_info_unsq, weather_data], dim=0)
-                return data, time_info, weather_data
+                return data, weather_data
             return data, time_info
         # Data augmentation
         return self._apply_data_augmentation()
@@ -180,7 +180,7 @@ class LNBDataset(Dataset):
         # Get a random grid index (NOTE augmented data are always shuffled)
         idx_grid = random.randint(0, len(self.grid_df) - 1)
 
-        time_info = self._name_to_time_info(self.grid_df["uleft0"][idx_grid])
+        time_info = self._name_to_time_info(str(self.grid_df["uleft0"][idx_grid]))
 
         # Get a 2*2 grid of data (shape (3, 4, 512, 512))
         grid = self._get_2by2_grid(idx_grid)
@@ -201,7 +201,11 @@ class LNBDataset(Dataset):
         size = int(256 * (2 - zoom))  # size of the crop
         # Rotate without cropping
         grid_r = transforms.functional.rotate(
-            grid, theta, interpolation=interpolation, expand=True, fill=0.0,
+            grid,
+            theta,
+            interpolation=interpolation,
+            expand=True,
+            fill=0.0,
         )
         # Find a random crop that avoids black borders
         ext = len(grid_r[0, 0])
@@ -213,21 +217,24 @@ class LNBDataset(Dataset):
         # Resize to 256x256
         try:
             data = transforms.functional.resize(
-                data, (256, 256), interpolation=interpolation,
+                data,
+                (256, 256),
+                interpolation=interpolation,
             )
         except RuntimeError:  # When the crop is outbounded -> take the center
             data = grid_r[:, :, 128:384, 128:384]
 
         if self.use_weather:
             weather_data = self._get_weather_vector(
-                self.grid_df.loc[idx_grid, ["uleft0", "uleft1", "uleft2"]],
+                self.grid_df.loc[idx_grid,
+                                 ["uleft0", "uleft1", "uleft2"]],  # type: ignore
             )
 
             # Concatenate time info and weather data
             time_info_unsq = torch.unsqueeze(time_info, dim=1)
             time_info_unsq = torch.unsqueeze(time_info_unsq, dim=1)
             weather_data = torch.cat([time_info_unsq, weather_data], dim=0)
-            return data, time_info, weather_data
+            return data, weather_data
         return data, time_info
 
     def _get_2by2_grid(self, idx: int) -> torch.Tensor:
@@ -240,7 +247,8 @@ class LNBDataset(Dataset):
         if mask_lai.ndim == 3:
             mask_lai = mask_lai[..., None]
         grid_np = np.concatenate(
-            [grid_np[..., 0:1], mask_lai, grid_np[..., -2:]], axis=-1,
+            [grid_np[..., 0:1], mask_lai, grid_np[..., -2:]],
+            axis=-1,
         )
         grid_np = self.normalize_fn(grid_np)  # shape (12, 256, 256, c)
         # To torch tensor
@@ -259,12 +267,12 @@ class LNBDataset(Dataset):
         weather = weather.iloc[-5:]
         # Convert weather to numpy array and remove city and date columns
         weather = weather.drop(columns=["city", "date"])
-        weather = weather.to_numpy()
+        weather_np = weather.to_numpy()
         # Convert shape (5, 11) to (55, 1, 1)
-        weather = weather.reshape(-1)
-        weather = np.expand_dims(weather, axis=(1, 2))
-        weather = torch.from_numpy(weather).float()
-        return weather
+        weather_np = weather_np.reshape(-1)
+        weather_np = np.expand_dims(weather_np, axis=(1, 2))
+        weather_torch = torch.from_numpy(weather_np).float()
+        return weather_torch
 
     def _name_to_time_info(self, filename: str) -> torch.Tensor:
         """Transform a filename to a time information vector.
@@ -304,7 +312,11 @@ if __name__ == "__main__":
         use_weather=False,
     )
     dataloader = torch.utils.data.DataLoader(
-        dataset, batch_size=16, shuffle=True, num_workers=6, prefetch_factor=2,
+        dataset,
+        batch_size=16,
+        shuffle=True,
+        num_workers=6,
+        prefetch_factor=2,
     )
     for data, time_info in dataloader:
         print("time info:")
@@ -321,7 +333,11 @@ if __name__ == "__main__":
         use_weather=True,
     )
     dataloader = torch.utils.data.DataLoader(
-        dataset, batch_size=16, shuffle=True, num_workers=6, prefetch_factor=2,
+        dataset,
+        batch_size=16,
+        shuffle=True,
+        num_workers=6,
+        prefetch_factor=2,
     )
     for data, time_info, weather in dataloader:
         print("time info:")

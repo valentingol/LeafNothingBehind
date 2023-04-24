@@ -11,6 +11,7 @@
 **tmp**
 # Wandb archive
 wandb
+.wandb_archives
 # Conda env
 environment.yml
 # Experiments

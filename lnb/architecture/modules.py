@@ -176,7 +176,8 @@ class AutoEncoder(nn.Module):
                 # Down-sample
                 x = nn.MaxPool2d(kernel_size=2, stride=2)(x)
         # Decoder
-        for i, block in enumerate(self.decoder_layers[:-1]):
+        for i in range(len(self.decoder_layers) - 1):
+            block = self.decoder_layers[i]
             # Up-sample
             x = self.upsample_layers[i](x)
             if self.residual:

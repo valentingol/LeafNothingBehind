@@ -1,5 +1,5 @@
 """Visualize the data."""
-
+import argparse
 import os.path as osp
 
 import matplotlib.pyplot as plt
@@ -8,7 +8,7 @@ import pandas as pd
 from tifffile import tifffile as tif
 
 
-def mask(img_mask):
+def mask(img_mask: np.ndarray) -> np.ndarray:
     """Transform an S2 mask (values between 0 and 9) to float32 binary.
 
     It uses the simple filter:
@@ -19,10 +19,10 @@ def mask(img_mask):
     return np.where(img_mask > 6, 0.0, interm)
 
 
-def visualize_mask(n_img, data_path, csv_name):
+def visualize_mask(n_img: int, data_path: str, csv_name: str) -> None:
     """Visualize the mask with colors."""
 
-    def val_to_rgb(array):
+    def val_to_rgb(array: np.ndarray) -> np.ndarray:
         rgb = np.zeros((array.shape[0], array.shape[1], 3))
         for i in range(12):
             rgb = np.where(array[..., None] == i, colors[i], rgb)
@@ -56,7 +56,7 @@ def visualize_mask(n_img, data_path, csv_name):
                 val_to_rgb(tif.imread(osp.join(s2m_path, series["0"][i_img]))),  # t-2
                 val_to_rgb(tif.imread(osp.join(s2m_path, series["1"][i_img]))),  # t-1
                 val_to_rgb(tif.imread(osp.join(s2m_path, series["2"][i_img]))),  # t
-            ]
+            ],
         )
         imgs = np.concatenate((imgs, img[None, ...]), axis=0)
 
@@ -64,8 +64,10 @@ def visualize_mask(n_img, data_path, csv_name):
     plt.show()
 
 
-def visualize(n_img, data_path, csv_name, kind="all"):
-    """Plot data with tffile under the form:
+def visualize(n_img: int, data_path: str, csv_name: str, kind: str = "all") -> None:
+    """Plot data with tffile.
+
+    Data are under the form:
     if kind == 'all':
     ---------------------------------------------
     |           |          |          |          |
@@ -77,11 +79,11 @@ def visualize(n_img, data_path, csv_name, kind="all"):
     if kind == 'lai':
     --------------
     |             |
-    |unnormalized |
+    |un-normalized|
     |     LAI     |
     |             |
     |             |
-    --------------
+    --------------.
 
     Vertical index is time step:
         t-2
@@ -89,7 +91,6 @@ def visualize(n_img, data_path, csv_name, kind="all"):
         t
     With sliders to control the image index below.
     """
-
     csv_path = osp.join(data_path, csv_name)
     series = pd.read_csv(csv_path)
     # randomly shuffle the dataset
@@ -108,33 +109,33 @@ def visualize(n_img, data_path, csv_name, kind="all"):
                     [  # t-2
                         tif.imread(osp.join(s2_path, series["0"][i_img])),  # LAI
                         mask(
-                            tif.imread(osp.join(s2m_path, series["0"][i_img]))
+                            tif.imread(osp.join(s2m_path, series["0"][i_img])),
                         ),  # LAI mask
                         tif.imread(osp.join(s1_path, series["0"][i_img]))[..., 0],  # VV
                         tif.imread(osp.join(s1_path, series["0"][i_img]))[..., 1],  # VH
-                    ]
+                    ],
                 ),
                 np.hstack(
                     [  # t-1
                         tif.imread(osp.join(s2_path, series["1"][i_img])),  # LAI
                         mask(
-                            tif.imread(osp.join(s2m_path, series["1"][i_img]))
+                            tif.imread(osp.join(s2m_path, series["1"][i_img])),
                         ),  # LAI mask
                         tif.imread(osp.join(s1_path, series["1"][i_img]))[..., 0],  # VV
                         tif.imread(osp.join(s1_path, series["1"][i_img]))[..., 1],  # VH
-                    ]
+                    ],
                 ),
                 np.hstack(
                     [  # t
                         tif.imread(osp.join(s2_path, series["2"][i_img])),  # LAI
                         mask(
-                            tif.imread(osp.join(s2m_path, series["2"][i_img]))
+                            tif.imread(osp.join(s2m_path, series["2"][i_img])),
                         ),  # LAI mask
                         tif.imread(osp.join(s1_path, series["2"][i_img]))[..., 0],  # VV
                         tif.imread(osp.join(s1_path, series["2"][i_img]))[..., 1],  # VH
-                    ]
+                    ],
                 ),
-            ]
+            ],
         )
 
         if kind == "all":
@@ -154,9 +155,23 @@ def visualize(n_img, data_path, csv_name, kind="all"):
     plt.show()
 
 
+def main() -> None:
+    """Visualize the input dataset."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data_path', type=str, default='../data')
+    parser.add_argument('--csv_name', type=str, required=True)
+    parser.add_argument('--n_img', type=int, default=30)
+    parser.add_argument('--kind', type=str, default='all',
+                        choices=['all', 'lai', 'mask'])
+    args = parser.parse_args()
+    if args.kind == 'mask':
+        visualize_mask(args.n_img, args.data_path, args.csv_name)
+    elif args.kind in ('lai', 'all'):
+        visualize(args.n_img, args.data_path, args.csv_name, args.kind)
+    else:
+        raise ValueError(f'Wrong kind argument: {args.kind}, expected one of '
+                         '"all", "lai", "mask".')
+
+
 if __name__ == "__main__":
-    DATA_PATH = "../data"
-    CSV_NAME = "train_regular.csv"
-    N_IMG = 30
-    # visualize(N_IMG, DATA_PATH, CSV_NAME, kind='all')
-    visualize_mask(N_IMG, DATA_PATH, CSV_NAME)
+    main()

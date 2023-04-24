@@ -1,0 +1,1 @@
+"""YAECS config module."""
