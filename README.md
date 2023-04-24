@@ -8,7 +8,7 @@
 
 [![Ruff](https://github.com/valentingol/LeafNothingBehind/actions/workflows/ruff.yaml/badge.svg)](https://github.com/valentingol/LeafNothingBehind/actions/workflows/ruff.yaml)
 [![MyPy](https://github.com/valentingol/LeafNothingBehind/actions/workflows/mypy.yaml/badge.svg)](https://github.com/valentingol/LeafNothingBehind/actions/workflows/mypy.yaml)
-[![PyLint](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/valentingol/106c646ac67294657bccf02bbe22208f/raw/workflow_template_pylint.json)](https://github.com/valentingol/LeafNothingBehind/actions/workflows/pylint.yaml)
+[![PyLint](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/valentingol/ec9e76ad6b0ca6c0c7263fb1e741ae05/raw/lnb_badges.json)](https://github.com/valentingol/LeafNothingBehind/actions/workflows/pylint.yaml)
 [![Flake8](https://github.com/valentingol/LeafNothingBehind/actions/workflows/flake.yaml/badge.svg)](https://github.com/valentingol/LeafNothingBehind/actions/workflows/flake.yaml)
 
 [![Torch_logo](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
