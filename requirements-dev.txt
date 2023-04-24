@@ -1,6 +1,8 @@
 einops==0.6.0
 flake8==6.0.0
+geopy==2.3.0
 matplotlib==3.7.1
+meteostat==1.6.5
 mypy==1.1.1
 mypy-extensions==1.0.0
 numpy==1.24.2
