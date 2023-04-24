@@ -14,4 +14,4 @@ jobs:
           python -m pip install --upgrade pip
           pip install mypy==1.1.1 mypy-extensions==1.0.0
           python -m pip install types-PyYAML
-          mypy --config-file pyproject.toml .
+          mypy --install-types --non-interactive --config-file pyproject.toml .
