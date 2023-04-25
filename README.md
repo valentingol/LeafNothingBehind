@@ -5,6 +5,7 @@
 ![PytorchVersion](https://img.shields.io/badge/Pytorch-1.8%20%7E%201.12%20%7c%202.0-blue)
 [![Ruff_logo](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v1.json)](https://github.com/charliermarsh/ruff)
 [![Black_logo](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Yaecs_logo](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/valentingol/afd136623afce429bafc648844bda2ca/raw/yaecs_logo.json)](https://github.com/valentingol/yaecs)
 
 [![Ruff](https://github.com/valentingol/LeafNothingBehind/actions/workflows/ruff.yaml/badge.svg)](https://github.com/valentingol/LeafNothingBehind/actions/workflows/ruff.yaml)
 [![MyPy](https://github.com/valentingol/LeafNothingBehind/actions/workflows/mypy.yaml/badge.svg)](https://github.com/valentingol/LeafNothingBehind/actions/workflows/mypy.yaml)
@@ -14,15 +15,17 @@
 [![Torch_logo](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![Wandb_logo](https://img.shields.io/badge/Weights_&_Biases-FFBE00?style=for-the-badge&logo=WeightsAndBiases&logoColor=white)](https://wandb.ai/site)
 
-Predict Leaf Area Index (LAI) on $256 \times 256$ images at time t given Sentinel-1
-data at time t, t-1 and t-2 and LAI at time t-1 and t-2. LAI should be segmented
-following the convention below (see Prepare your data).
+Predict the Leaf Area Index (LAI) on $256 \times 256$ images at time t, using Sentinel-1
+data at time t, t-1, and t-2, as well as LAI values at time t-1 and t-2. The LAI
+segmentation should follow the convention outlined in the *Prepare your data* section.
 
 ---
-This work under [MIT license](./LICENSE) is part of the [Transfer Learning](https://transfer-learning.org/)
-competition of 2023 called Leaf Nothing Behind (LNB). The teams is composed
-of Antoine Debouchage, Valentin Goldite, Clement Wang and Aurelien Wery.
-The competition was in partnership with [World from Space](http://worldfrom.space/)
+
+This work, which is governed by the [MIT license](./LICENSE), is a contribution to the
+2023 Transfer Learning competition called "Leaf Nothing Behind" (LNB) hosted by
+Transfer-Learning.org. The team consists of Antoine Debouchage, Valentin Goldite,
+Clement Wang, and Aurelien Wery. The competition is held in partnership with
+[World from Space](http://worldfrom.space/).
 
 ---
 
@@ -93,7 +96,8 @@ The csv name should be your training set.
 
 ## Train
 
-We use the configuration manager [YAECS](https://github.com/valentingol/yaecs) for training.
+We use the configuration manager [YAECS](https://github.com/valentingol/yaecs)
+for training.
 
 The defaults parameters are under `config/defaults.yaml`. All the parameters are
 defined in this file but the parameters `config.model` and `confg.archi_name`
@@ -115,7 +119,8 @@ python lnb/train.py --config config/model/scandium.yaml --model.layer_channels=[
 ```
 
 Finally you can create your own configuration file and merge it with other config.
-For instance, considering you have a custom config file to fit with your data and machine:
+For instance, considering you have a custom config file to fit with your data
+and machine:
 
 ```yaml
 # config/my_config.yaml
@@ -141,7 +146,7 @@ in command line.
 
 The models are automatically saved in `../models/<archi_name>` with configuration.
 
-### Available architecture
+### Available architectures
 
 `glob` refers to seasonality (2 periodic features between -1 and 1)
 and optionally weather data (see `/config/model/scandium_weather.yaml` for an example).
