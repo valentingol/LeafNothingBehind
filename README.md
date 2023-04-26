@@ -153,31 +153,31 @@ and optionally weather data (see `/config/model/scandium_weather.yaml` for an ex
 
 - Scandium
 
-![scandium](./assets/scandium_archi.svg)
+![scandium](./assets/scandium_archi.drawio.svg)
 
 - Titanium
 
-![titanium](./assets/titanium_archi.svg)
+![titanium](./assets/titanium_archi.drawio.svg)
 
 - Vanadium
 
-![vanadium](./assets/vanadium_archi.svg)
+![vanadium](./assets/vanadium_archi.drawio.svg)
 
 - Manganese
 
-![manganese](./assets/manganese_archi.svg)
+![manganese](./assets/manganese_archi.drawio.svg)
 
 - Sodium (no input LAI)
 
-![sodium](./assets/sodium_archi.svg)
+![sodium](./assets/sodium_archi.drawio.svg)
 
 - Aluminium (no input S1)
 
-![aluminium](./assets/aluminium_archi.svg)
+![aluminium](./assets/aluminium_archi.drawio.svg)
 
 - Strontium
 
-![strontium](./assets/strontium_archi.svg)
+![strontium](./assets/strontium_archi.drawio.svg)
 
 ### Example of results
 
