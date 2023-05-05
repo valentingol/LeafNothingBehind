@@ -1,6 +1,7 @@
 run_id: null  # None for random id (recommended)
 archi_name: null
-model: null
+
+model_config_path: 'config/models.yaml'
 
 data: !data
   dataset_path: '../data'

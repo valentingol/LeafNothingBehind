@@ -1,0 +1,7 @@
+archi_name: strontium
+
+train:
+  weight_2: 0.1
+  weight_3: 0.15
+
+dataloader.batch_size: 8

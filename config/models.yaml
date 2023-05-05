@@ -1,0 +1,115 @@
+model: !model
+  aluminium: !aluminium
+    ae_config:  # U-Net-like architecture
+      in_dim: 7  # 2 + 2*mask_emb + mlp_layers[-1]
+      out_dim: 1
+      layer_channels: [32, 64, 128]
+      conv_per_layer: 2
+      residual: true
+      dropout_rate: 0.0
+    mask_embedding_channels: 2
+    mlp_layers: [2, 1]
+
+  manganese: !manganese
+    s1_ae_config:  # U-Net-like architecture
+      in_dim: 2  # always 2 (if input={VV, VH})
+      out_dim: 1
+      layer_channels: [16, 32, 64]
+      conv_per_layer: 1
+      residual: false
+      dropout_rate: 0.0
+    mask_module_dim: [6, 2]  # include input dim
+    glob_module_dims: [2, 8, 2]  # include input dim
+    conv_block_dims: [32, 64, 128]  # exclude input dim (automatically inferred)
+    conv_block_dropout: 0.0
+
+  scandium: !scandium
+    s1_ae_config:  # U-Net-like architecture
+      in_dim: 2  # always 2 (if input={VV, VH})
+      out_dim: 1
+      layer_channels: [16, 32, 64]
+      conv_per_layer: 1
+      residual: false
+      dropout_rate: 0.0
+    mask_module_dim: [6, 2]  # include input dim
+    glob_module_dims: [2, 8, 2]  # include input dim
+    conv_block_dims: [32, 64, 128]  # exclude input dim (automatically inferred)
+
+  sodium: !sodium
+    ae_config:  # U-Net-like architecture
+      in_dim: 11  # 6 + 2*mask_embedding_channels + mlp_layers[-1]
+      out_dim: 1
+      layer_channels: [32, 64, 128]
+      conv_per_layer: 2
+      residual: true
+      dropout_rate: 0.0
+    mask_embedding_channels: 2
+    mlp_layers: [2, 1]
+
+  strontium: !strontium
+    sodium_config:
+      pretrained: false
+      run_id: 0
+      ae_config:  # U-Net-like architecture
+        in_dim: 11  # 6 + 2*mask_embedding_channels + mlp_layers[-1]
+        out_dim: 1
+        layer_channels: [32, 64, 128]
+        conv_per_layer: 2
+        residual: true
+        dropout_rate: 0.0
+      mask_embedding_channels: 2
+      mlp_layers: [2, 1]
+    aluminium_config:
+      pretrained: false
+      run_id: 0
+      ae_config:  # U-Net-like architecture
+        in_dim: 7  # 2 + 2*mask_emb + mlp_layers[-1]
+        out_dim: 1
+        layer_channels: [32, 64, 128]
+        conv_per_layer: 2
+        residual: true
+        dropout_rate: 0.0
+      mask_embedding_channels: 2
+      mlp_layers: [2, 1]
+    ae_config:
+      in_dim: 64 # aluminium_config['layer_channels'][0] + sodium_config['layer_channels'][0]
+      out_dim: 1
+      layer_channels: [64, 128, 256]
+      conv_per_layer: 2
+      residual: true
+      dropout_rate: 0.0
+
+  titanium: !titanium
+    s1_ae_config:  # U-Net-like architecture
+      in_dim: 2  # always 2 (if input={VV, VH})
+      out_dim: 1
+      layer_channels: [16, 32, 64]
+      conv_per_layer: 1
+      residual: false
+      dropout_rate: 0.0
+    mask_module_dim: [6, 2]  # include input dim
+    glob_module_dims: [2, 8, 2]  # include input dim
+    end_ae_config:
+      layer_channels: [32, 64, 128, 256]
+      conv_per_layer: 2
+      residual: true
+      dropout_rate: 0.0
+
+  vanadium: !vanadium
+    s1_ae_config:  # U-Net-like architecture
+      in_dim: 2  # always 2 (if input={VV, VH})
+      out_dim: 1
+      layer_channels: [16, 32, 64]
+      conv_per_layer: 1
+      residual: false
+      dropout_rate: 0.0
+    mask_module_dim: [6, 2]  # include input dim
+    glob_module_dims: [2, 8, 2]  # include input dim
+    segformer_config:
+      num_encoder_blocks: 3
+      strides: [2, 2, 2]
+      hidden_sizes: [32, 64, 128]
+      num_attention_heads: [1, 2, 4]
+      hidden_dropout_prob: 0.0
+      attention_probs_dropout_prob: 0.0
+    transposed_conv_block_dims: [64, 32, 16]
