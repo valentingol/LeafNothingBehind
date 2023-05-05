@@ -99,15 +99,17 @@ The csv name should be your training set.
 We use the configuration manager [YAECS](https://github.com/valentingol/yaecs)
 for training.
 
-The defaults parameters are under `config/defaults.yaml`. All the parameters are
-defined in this file but the parameters `config.model` and `confg.archi_name`
-are set to `null` and should be set to the desired architecture name and model
-config (see section below). To do so, we provide some example of configuration files
-under `config/` that implement the different architectures and that can be merged
-with the default parameters easily with the following command:
+The defaults parameters are under `config/defaults.yaml`. All the existing parameters are
+defined in this file but the parameters `config.model` that are defined on `config/models.yaml`.
+Finally, `confg.archi_name` is set to null and must be set to the desired architecture
+name for your experiments (see section below).
+
+To do so, we provide some example of configuration files under `config/exps` that
+implement the different architectures and that can be merged with the default parameters
+easily with the following command:
 
 ```script
-python lnb/train.py --config config/model/<architecture>.yaml
+python lnb/train.py --config config/exps/<architecture>.yaml
 ```
 
 Moreover, you can set all the parameters you want in command line as long as they
@@ -115,7 +117,7 @@ are defined in the default parameters. For instance to make a scandium with laye
 of dimension 32 and 64 and a learning rate equal to 0.01, you can run:
 
 ```script
-python lnb/train.py --config config/model/scandium.yaml --model.layer_channels=[16, 32] --model.learning_rate=0.01
+python lnb/train.py --config config/exps/scandium.yaml --model.scandium.layer_channels=[16, 32] --model.scandium.learning_rate=0.01
 ```
 
 Finally you can create your own configuration file and merge it with other config.
@@ -124,7 +126,7 @@ and machine:
 
 ```yaml
 # config/my_config.yaml
-model.layer_channels: [16, 32]
+model.scandium.layer_channels: [16, 32]
 data:
   dataset_path: 'my_dataset/path'
   csv_name: 'my_train_csv.csv'
@@ -137,7 +139,7 @@ dataloader:
 You can merge it with the default parameters and the scandium architecture with:
 
 ```script
-python lnb/train.py --config [config/model/scandium.yaml,config/my_config.yaml]
+python lnb/train.py --config [config/exps/scandium.yaml,config/my_config.yaml]
 ```
 
 Here the scandium config is merge first then your custom config.
