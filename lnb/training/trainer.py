@@ -1,19 +1,18 @@
 """Training functions for Scandium."""
 import os
-from time import time
 from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
 import wandb
 import yaml
+from logml import Logger
 from torch import nn
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
 
 from lnb.architecture import models as models_module
 from lnb.data.dataset import LNBDataset
-from lnb.training.log_utils import get_time_log
 from lnb.training.metrics import mse_loss
 
 ParsedDataType = Dict[str, Dict[str, torch.Tensor]]
@@ -152,7 +151,7 @@ def train_val_loop(
     # Get training config params
     train_config = config["train"]
     n_epochs = train_config["n_epochs"]
-    n_batch = len(train_dataloader)
+    n_batches = len(train_dataloader)
     lr_decay = train_config["learning_rate_decay"]
     lr_n_mult = train_config["learning_rate_n_mult"]
     # Optimizer and scheduler
@@ -160,15 +159,37 @@ def train_val_loop(
     milestones = [int(epoch) for epoch in np.linspace(0, n_epochs, lr_n_mult + 1)][1:]
     scheduler = MultiStepLR(optimizer, milestones=milestones, gamma=lr_decay)
 
-    start_t = time()
+    # Loggers
+    train_logger = Logger(
+        n_epochs,
+        n_batches,
+        train_config["log_interval"],
+        name='Train',
+        name_style='dark_orange3',
+        styles='red',
+        average=['.*mean.*'],
+        bold_keys=True,
+    )
+    val_loggers = []
+    for val_dataloader in val_dataloaders:
+        val_name = val_dataloader.dataset.name
+        val_logger = Logger(
+            n_epochs,
+            n_batches=len(val_dataloader),
+            name=f"Validation {val_name}",
+            name_style='cyan',
+            styles='blue',
+            average=['valid loss'],
+            show_bar=False,
+            bold_keys=True,
+        )
+        val_loggers.append(val_logger)
+
+    # Training and validation loop
     for epoch in range(n_epochs):
         # Training
         model = model.train()
-        epoch_start_t = time()
-        train_losses = []
-        i_batch = 0  # iteration number in current epoch
-        for data, glob in train_dataloader:
-            i_batch += 1
+        for data, glob in train_logger.tqdm(train_dataloader):
             # Parse data and put it on device
             parsed_data = parse_data_device(data, glob, device)
             loss, loss2 = train_step(
@@ -179,62 +200,31 @@ def train_val_loop(
                 weight_2=train_config["weight_2"],
                 weight_3=train_config["weight_3"],
             )
-            train_losses.append(loss.item())
             # Logs
-            wandb.log({"train loss": loss.item()})
+            values = {"train loss": loss.item(), "mean train loss": loss.item()}
             if loss2 is not None:
-                wandb.log({"train loss2": loss2.item()})
-            if i_batch % train_config["log_interval"] == 0:
-                current_t = time()
-                eta_str, eta_ep_str = get_time_log(
-                    current_t,
-                    start_t,
-                    epoch_start_t,
-                    i_batch,
-                    epoch,
-                    n_batch,
-                    n_epochs,
-                )
-                print(
-                    f"train loss batch: {loss.item():.4f} - eta epoch {eta_ep_str}"
-                    f"- eta {eta_str}     ",
-                    end="\r",
-                )
-
-        # Epoch train logs
-        mean_train_loss = sum(train_losses) / len(train_losses)
-        wandb.log({"mean train loss": mean_train_loss})
-        print(f"\nEpoch {epoch + 1}/{n_epochs}, mean train loss {mean_train_loss:.4f}")
+                values["train loss2"] = loss2.item()
+            train_logger.log(values, styles={'train loss2': 'orange3'})
+            del values["mean train loss"]
+            wandb.log(values, step=train_logger.step)
+            wandb.log({"mean train loss": train_logger.mean_vals['train loss']},
+                      step=train_logger.step)
 
         # Validation
         model = model.eval()
-        for val_dataloader in val_dataloaders:
+        for val_dataloader, val_logger in zip(val_dataloaders, val_loggers):
             # Free unused VRAM
             torch.cuda.empty_cache()
             val_name = val_dataloader.dataset.name
-            n_batch_val = len(val_dataloader)
-            valid_losses = []
-            i_batch = 0
-            for data, glob in val_dataloader:
-                i_batch += 1
+            for data, glob in val_logger.tqdm(val_dataloader):
                 # Parse data and put it on device
                 parsed_data = parse_data_device(data, glob, device)
                 loss = valid_step(model, parsed_data)
-                valid_losses.append(loss.item())
-                # Logs
-                if i_batch % train_config["log_interval"] == 0:
-                    print(
-                        f"Validation in progress... batch {i_batch}/{n_batch_val}  ",
-                        end="\r",
-                    )
+                val_logger.log({"valid loss": loss.item()})
 
             # Epoch validation logs
-            mean_valid_loss = sum(valid_losses) / len(valid_losses)
+            mean_valid_loss = val_logger.mean_vals['valid loss']
             wandb.log({f"mean valid loss {val_name}": mean_valid_loss})
-            print(
-                f"\nEpoch {epoch + 1}/{n_epochs}, mean valid loss "
-                f"{val_name} {mean_valid_loss:.4f}",
-            )
 
         # Free unused VRAM
         torch.cuda.empty_cache()
