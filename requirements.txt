@@ -1,5 +1,6 @@
 einops==0.6.0
 geopy==2.3.0
+loggerml==0.6.0
 matplotlib==3.7.1
 meteostat==1.6.5
 numpy==1.24.2
