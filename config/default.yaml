@@ -21,7 +21,7 @@ train: !train
   learning_rate_decay: 0.2  # lr *= decay at each decay step
   val_batch_size: 16
   n_epochs: 30
-  log_interval: 20  # in iterations
+  log_interval: null  # in iterations
   save_interval: 10  # in epochs
   interm_supervis: false  # intermediate supervision for AE
   weight_2: null  # weight on the second loss term for strontium
