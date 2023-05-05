@@ -20,8 +20,8 @@ class ProjectConfig(Configuration):
 
     def parameters_pre_processing(self) -> dict:
         """Pre-processing on some config parameters."""
-        return {"run_id": random_run_id}
+        return {"*_config_path": self.register_as_additional_config_file}
 
     def parameters_post_processing(self) -> dict:
         """Post-processing on some config parameters."""
-        return {}
+        return {"run_id": random_run_id}

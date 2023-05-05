@@ -273,7 +273,7 @@ def run(config: Dict) -> None:
     except AttributeError as exc:
         raise ValueError(f"Model {archi_name_cap} not found in "
                          "lnb/architecture/models.py") from exc
-    model = model_class(config["model"]).to(device)
+    model = model_class(config["model"][archi_name.split('_')[0]]).to(device)
     # Print number of parameters
     n_params = sum(params.numel() for params in model.parameters()
                    if params.requires_grad)
